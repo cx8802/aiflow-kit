@@ -9,6 +9,7 @@ from ..core.databases import (
     database_local_path,
     list_database_tables,
     load_databases,
+    query_database_profile,
     redact_profile,
     resolve_database_profile,
     save_database_file,
@@ -56,6 +57,17 @@ def configure_db_parser(sub) -> None:
     tables.add_argument("--schema", default="", help="Optional schema or owner filter")
     tables.set_defaults(func=run_db)
 
+    query = db_sub.add_parser("query", help="Run an arbitrary query for a database profile")
+    query.add_argument("name")
+    query.add_argument("query", nargs="?", default="", help="SQL text, or MongoDB filter JSON with --collection")
+    query.add_argument("--limit", type=int, default=100, help="Maximum rows to print; use 0 for no output limit")
+    query.add_argument("--format", choices=["table", "json"], default="table")
+    query.add_argument("--collection", default="", help="MongoDB collection for find queries")
+    query.add_argument("--filter-json", default="", help="MongoDB find filter JSON object")
+    query.add_argument("--projection-json", default="", help="MongoDB find projection JSON object")
+    query.add_argument("--command-json", default="", help="MongoDB database command JSON object")
+    query.set_defaults(func=run_db)
+
 
 def run_db(args: Namespace) -> int:
     command = args.db_command
@@ -69,6 +81,8 @@ def run_db(args: Namespace) -> int:
         return db_test(args)
     if command == "tables":
         return db_tables(args)
+    if command == "query":
+        return db_query(args)
     raise ValueError(f"Unknown db command: {command}")
 
 
@@ -163,3 +177,69 @@ def db_tables(args: Namespace) -> int:
         for row in result.rows:
             print(row)
     return 0 if result.ok else 1
+
+
+def db_query(args: Namespace) -> int:
+    root = project_root()
+    profile = resolve_database_profile(root, args.name)
+    if not profile:
+        print(f"Database profile not found: {args.name}")
+        return 2
+    if profile.get("type") != "mongodb" and not args.query.strip():
+        print("db query requires SQL text for this database type")
+        return 2
+    result = query_database_profile(
+        root,
+        profile,
+        args.query,
+        limit=args.limit,
+        mongo_collection=args.collection,
+        mongo_filter_json=args.filter_json,
+        mongo_projection_json=args.projection_json,
+        mongo_command_json=args.command_json,
+    )
+    if args.format == "json" and result.ok:
+        print(json.dumps(_result_json(result), indent=2, ensure_ascii=False, default=str))
+    else:
+        print(result.message)
+        if result.ok and result.rows is not None:
+            _print_result_rows(result)
+    return 0 if result.ok else 1
+
+
+def _result_json(result) -> object:
+    rows = result.rows or []
+    if result.columns:
+        return [dict(zip(result.columns, row)) for row in rows]
+    if rows:
+        return rows
+    return {"message": result.message, "rows": []}
+
+
+def _print_result_rows(result) -> None:
+    rows = result.rows or []
+    if result.columns:
+        print("\t".join(result.columns))
+        for row in rows:
+            print("\t".join(_format_cell(value) for value in row))
+        return
+    if rows and isinstance(rows[0], dict):
+        columns: list[str] = []
+        for row in rows:
+            for key in row:
+                if key not in columns:
+                    columns.append(key)
+        print("\t".join(columns))
+        for row in rows:
+            print("\t".join(_format_cell(row.get(column, "")) for column in columns))
+        return
+    for row in rows:
+        print(_format_cell(row))
+
+
+def _format_cell(value) -> str:
+    if isinstance(value, (dict, list)):
+        return json.dumps(value, ensure_ascii=False, default=str)
+    if value is None:
+        return ""
+    return str(value)

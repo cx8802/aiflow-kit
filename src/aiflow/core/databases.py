@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import sqlite3
 import tomllib
+import json
 from dataclasses import dataclass
 from importlib.util import find_spec
 from os import environ
@@ -25,7 +26,8 @@ DRIVER_HELP = {
 class DatabaseResult:
     ok: bool
     message: str
-    rows: list[str] | None = None
+    rows: list[Any] | None = None
+    columns: list[str] | None = None
 
 
 def database_config_path(root: Path) -> Path:
@@ -150,6 +152,55 @@ def list_database_tables(root: Path, profile: dict[str, Any], schema: str = "") 
     return DatabaseResult(False, f"Unsupported database type: {db_type}")
 
 
+def query_database_profile(
+    root: Path,
+    profile: dict[str, Any],
+    query: str,
+    *,
+    limit: int = 100,
+    mongo_collection: str = "",
+    mongo_filter_json: str = "",
+    mongo_projection_json: str = "",
+    mongo_command_json: str = "",
+) -> DatabaseResult:
+    db_type = profile.get("type")
+    if db_type == "sqlite":
+        db_path = sqlite_path(root, profile)
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+        return _execute_sql_query("sqlite", sqlite3.connect(db_path), query, limit)
+    if db_type == "mysql":
+        return _mysql_query(profile, query, limit)
+    if db_type == "postgres":
+        conn = _postgres_connect(profile)
+        if conn is None:
+            return _missing_driver("postgres", ["psycopg", "psycopg2"])
+        return _execute_sql_query("postgres", conn, query, limit)
+    if db_type == "sqlserver":
+        try:
+            conn, _driver_name = _sqlserver_connect(profile)
+        except Exception as exc:
+            return DatabaseResult(False, f"sqlserver query failed: {exc}")
+        if conn is None:
+            return _missing_driver("sqlserver", ["pyodbc", "pymssql"])
+        return _execute_sql_query("sqlserver", conn, query, limit)
+    if db_type == "oracle":
+        conn = _oracle_connect(profile)
+        if conn is None:
+            return _missing_driver("oracle", ["oracledb", "cx_Oracle"])
+        return _execute_sql_query("oracle", conn, query, limit)
+    if db_type == "mongodb":
+        return _mongodb_query(
+            profile,
+            query,
+            limit=limit,
+            collection=mongo_collection,
+            filter_json=mongo_filter_json,
+            projection_json=mongo_projection_json,
+            command_json=mongo_command_json,
+        )
+    return DatabaseResult(False, f"Unsupported database type: {db_type}")
+
+
 def sqlite_path(root: Path, profile: dict[str, Any]) -> Path:
     db_path = Path(profile.get("path") or profile.get("database", ""))
     if not db_path.is_absolute():
@@ -173,6 +224,32 @@ def _sqlite_tables(path: Path) -> DatabaseResult:
 def _missing_driver(db_type: str, modules: list[str]) -> DatabaseResult:
     choices = ", ".join(modules)
     return DatabaseResult(False, f"{db_type} driver not found ({choices}). {DRIVER_HELP[db_type]}")
+
+
+def _normalize_cell(value: Any) -> Any:
+    if isinstance(value, (str, int, float, bool)) or value is None:
+        return value
+    return str(value)
+
+
+def _execute_sql_query(db_type: str, conn: Any, query: str, limit: int) -> DatabaseResult:
+    try:
+        cur = conn.cursor()
+        try:
+            cur.execute(query)
+            if cur.description:
+                columns = [str(column[0]) for column in cur.description]
+                fetched = cur.fetchall() if limit <= 0 else cur.fetchmany(limit)
+                rows = [[_normalize_cell(value) for value in row] for row in fetched]
+                return DatabaseResult(True, f"{db_type} query rows: {len(rows)}", rows, columns)
+            conn.commit()
+            affected = cur.rowcount if getattr(cur, "rowcount", -1) >= 0 else "unknown"
+            return DatabaseResult(True, f"{db_type} query affected: {affected}")
+        finally:
+            cur.close()
+            conn.close()
+    except Exception as exc:
+        return DatabaseResult(False, f"{db_type} query failed: {exc}")
 
 
 def _has_module(name: str) -> bool:
@@ -262,6 +339,25 @@ def _mysql_tables(profile: dict[str, Any]) -> DatabaseResult:
         return _missing_driver("mysql", ["pymysql", "mysql.connector"])
     except Exception as exc:
         return DatabaseResult(False, f"mysql table list failed: {exc}")
+
+
+def _mysql_query(profile: dict[str, Any], query: str, limit: int) -> DatabaseResult:
+    try:
+        if _has_module("pymysql"):
+            import pymysql
+
+            conn = pymysql.connect(**_mysql_connect_kwargs(profile))
+            return _execute_sql_query("mysql", conn, query, limit)
+        if _has_module("mysql.connector"):
+            import mysql.connector
+
+            kwargs = _mysql_connect_kwargs(profile)
+            kwargs["connection_timeout"] = kwargs.pop("connect_timeout")
+            conn = mysql.connector.connect(**kwargs)
+            return _execute_sql_query("mysql", conn, query, limit)
+        return _missing_driver("mysql", ["pymysql", "mysql.connector"])
+    except Exception as exc:
+        return DatabaseResult(False, f"mysql query failed: {exc}")
 
 
 def _postgres_connect(profile: dict[str, Any]):
@@ -515,3 +611,50 @@ def _mongodb_collections(profile: dict[str, Any]) -> DatabaseResult:
         return DatabaseResult(True, message, rows)
     except Exception as exc:
         return DatabaseResult(False, f"mongodb collection list failed: {exc}")
+
+
+def _parse_json_object(raw: str, fallback: dict[str, Any] | None = None) -> dict[str, Any]:
+    if not raw:
+        return fallback or {}
+    value = json.loads(raw)
+    if not isinstance(value, dict):
+        raise ValueError("expected a JSON object")
+    return value
+
+
+def _mongodb_query(
+    profile: dict[str, Any],
+    query: str,
+    *,
+    limit: int,
+    collection: str,
+    filter_json: str,
+    projection_json: str,
+    command_json: str,
+) -> DatabaseResult:
+    try:
+        client = _mongodb_client(profile)
+        if client is None:
+            return _missing_driver("mongodb", ["pymongo"])
+        database_name = profile.get("database")
+        if not database_name:
+            client.close()
+            return DatabaseResult(False, "mongodb query requires a configured database")
+        database = client[database_name]
+        if command_json:
+            result = database.command(_parse_json_object(command_json))
+            client.close()
+            return DatabaseResult(True, "mongodb command result: 1", [result])
+        if not collection:
+            client.close()
+            return DatabaseResult(False, "mongodb query requires --collection or --command-json")
+        filter_value = _parse_json_object(filter_json or query, {})
+        projection = _parse_json_object(projection_json) if projection_json else None
+        cursor = database[collection].find(filter_value, projection)
+        if limit > 0:
+            cursor = cursor.limit(limit)
+        rows = [{key: _normalize_cell(value) for key, value in row.items()} for row in cursor]
+        client.close()
+        return DatabaseResult(True, f"mongodb query rows: {len(rows)}", rows)
+    except Exception as exc:
+        return DatabaseResult(False, f"mongodb query failed: {exc}")

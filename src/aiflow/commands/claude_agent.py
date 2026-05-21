@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import json
 import subprocess
+import sys
 from argparse import Namespace
 from pathlib import Path
 from typing import Any
 
+from ..core.agents import find_task_file
 from ..core.claude_agent import (
     SDK_PACKAGE,
     claude_code_command,
@@ -67,6 +69,9 @@ def add_run_args(parser, *, prompt_required: bool = True) -> None:
     parser.add_argument("prompt", nargs="+" if prompt_required else "*", help="Task prompt")
     parser.add_argument("--model", default=None, help="Model alias or full model id")
     parser.add_argument("--allow-edit", action="store_true", help="Allow Edit/Write tools for this run")
+    parser.add_argument("--edit-scope", action="append", default=[], help="Allowed file or directory path for --allow-edit")
+    parser.add_argument("--task-id", default="", help="Bind this run to a .aiflow/agents task id")
+    parser.add_argument("--verify-after", action="store_true", help="Run aiflow verify --auto --continue-on-error after a successful SDK run")
     parser.add_argument("--dry-run", action="store_true", help="Write and print input without invoking Node")
     parser.add_argument("--force", action="store_true", help="Run even when claude_agent.enabled is false")
     parser.add_argument("--no-proxy", action="store_true", help="Do not set 10808 proxy for SDK call")
@@ -149,6 +154,9 @@ def claude_agent_run(args: Namespace) -> int:
     if error:
         print(error)
         return 2
+    if args.edit_scope and not args.allow_edit:
+        print("--edit-scope requires --allow-edit")
+        return 2
 
     env = command_env(root, config, use_proxy=should_use_proxy(config, no_proxy=args.no_proxy))
     if not args.dry_run:
@@ -168,7 +176,7 @@ def claude_agent_run(args: Namespace) -> int:
             return 1
 
     run_dir = runs_dir(root, config) / make_run_id(command)
-    prompt = build_prompt(root, command, " ".join(args.prompt))
+    prompt = build_prompt(root, command, " ".join(args.prompt), args)
     input_data = build_input(root, config, command, prompt, model, args, run_dir)
 
     if args.dry_run:
@@ -189,19 +197,74 @@ def claude_agent_run(args: Namespace) -> int:
     except subprocess.TimeoutExpired:
         print(f"Claude Agent SDK run timed out after {input_data.get('timeoutSeconds', 300)} seconds")
         return 124
+    if result.returncode == 0 and args.verify_after:
+        verify = subprocess.run(
+            [sys.executable, "-m", "aiflow", "verify", "--auto", "--continue-on-error"],
+            cwd=root,
+            text=True,
+        )
+        return verify.returncode
     return result.returncode
 
 
-def build_prompt(root: Path, command: str, prompt: str) -> str:
+def build_prompt(root: Path, command: str, prompt: str, args: Namespace) -> str:
     if command == "explore":
-        return f"Read-only exploration task: {prompt}\nReturn concise findings, risks, and relevant files."
-    if command == "review-diff":
+        base = f"Read-only exploration task: {prompt}\nReturn concise findings, risks, and relevant files."
+    elif command == "review-diff":
         diff = git_diff(root)
         user_prompt = prompt or "Review the current git diff for bugs, risks, missing tests, and unsafe changes."
-        return f"{user_prompt}\n\n# Git Diff\n\n```diff\n{diff}\n```"
-    if command == "compact":
-        return prompt or "Create a concise compact context from the provided aiflow context files. Preserve commands, risks, current plan, and memory."
-    return prompt
+        base = f"{user_prompt}\n\n# Git Diff\n\n```diff\n{diff}\n```"
+    elif command == "compact":
+        base = prompt or "Create a concise compact context from the provided aiflow context files. Preserve commands, risks, current plan, and memory."
+    else:
+        base = prompt
+    return append_run_constraints(root, base, args)
+
+
+def append_run_constraints(root: Path, prompt: str, args: Namespace) -> str:
+    sections = [prompt.rstrip()]
+    task_id = str(getattr(args, "task_id", "") or "").strip()
+    if task_id:
+        sections.extend(["", "## Aiflow Task Binding", "", f"- Task id: `{task_id}`"])
+        task_file = find_task_file(root, task_id)
+        if task_file:
+            sections.extend(
+                [
+                    f"- Task file: `{task_file.relative_to(root).as_posix()}`",
+                    "",
+                    "```text",
+                    task_file.read_text(encoding="utf-8")[:20_000],
+                    "```",
+                ]
+            )
+
+    edit_scope = normalized_edit_scope(args)
+    if edit_scope:
+        sections.extend(["", "## Edit Scope", ""])
+        sections.extend(f"- `{scope}`" for scope in edit_scope)
+        sections.append("")
+        sections.append("Do not edit files outside the listed scope. If the task requires broader edits, stop and report the blocker.")
+    elif getattr(args, "allow_edit", False):
+        sections.extend(
+            [
+                "",
+                "## Edit Scope",
+                "",
+                "No explicit edit scope was provided. Keep edits to the minimum files directly required by the task and report any broader need.",
+            ]
+        )
+
+    if getattr(args, "verify_after", False):
+        sections.extend(
+            [
+                "",
+                "## Post-run Verification",
+                "",
+                "After implementation, the orchestrator will run `aiflow verify --auto --continue-on-error`.",
+                "Return a concise patch summary and any verification risks.",
+            ]
+        )
+    return "\n".join(sections).rstrip() + "\n"
 
 
 def build_input(
@@ -229,6 +292,7 @@ def build_input(
     return {
         "cwd": str(root),
         "task": command,
+        "taskId": str(getattr(args, "task_id", "") or ""),
         "prompt": prompt,
         "model": model,
         "packageDir": str(package_dir(root, config)),
@@ -240,11 +304,25 @@ def build_input(
         "permissionMode": str(config.get("permission_mode", "dontAsk")),
         "allowedTools": allowed_tools,
         "disallowedTools": disallowed_tools,
+        "editScope": normalized_edit_scope(args),
         "maxTurns": args.max_turns or int(config.get("max_turns", 8)),
         "maxBudgetUsd": float(config.get("max_budget_usd", 0.2)),
         "timeoutSeconds": int(config.get("timeout_seconds", 300)),
+        "postRunVerifyCommand": "aiflow verify --auto --continue-on-error" if getattr(args, "verify_after", False) else "",
         "writeResultTo": write_result_to,
     }
+
+
+def normalized_edit_scope(args: Namespace) -> list[str]:
+    raw_scope = getattr(args, "edit_scope", []) or []
+    scope: list[str] = []
+    seen: set[str] = set()
+    for item in raw_scope:
+        value = str(item).replace("\\", "/").strip().strip("/")
+        if value and value not in seen:
+            scope.append(value)
+            seen.add(value)
+    return scope
 
 
 def git_diff(root: Path) -> str:
