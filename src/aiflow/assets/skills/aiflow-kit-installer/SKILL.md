@@ -25,8 +25,9 @@ When the user says "install aiflow-kit in this project", run these commands from
 
 ```bat
 {{ AIFLOW_DEV_BAT }} init
+{{ AIFLOW_DEV_BAT }} frontend install
 {{ AIFLOW_DEV_BAT }} install-skills
-{{ AIFLOW_DEV_BAT }} context
+{{ AIFLOW_DEV_BAT }} context --compact
 ```
 
 This writes only project-level files:
@@ -36,8 +37,14 @@ AGENTS.md
 CLAUDE.md
 .aiflow/config.toml
 .aiflow/context.md
+.aiflow/context.compact.md
 .agents/skills/
+.tools/frontend-tools/
+.tools/ms-playwright/
 ```
+
+`.tools/` is project-local runtime output and should stay ignored by git.
+`.aiflow/memory.md` is created later by `aiflow memory add`.
 
 ## Optional Current-Session Convenience
 

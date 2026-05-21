@@ -29,13 +29,25 @@ aiflow --help
 aiflow init
 aiflow doctor
 aiflow context
+aiflow context --compact
+aiflow compact
+aiflow memory list
+aiflow memory search "keyword"
 aiflow plan
 aiflow review
 aiflow verify
+aiflow verify --auto
+aiflow config check
+aiflow config show
+aiflow frontend install
+aiflow claude-agent doctor
+aiflow claude-agent run "task" --model small --dry-run
 aiflow install-skills
 aiflow agents init
 aiflow agents plan "goal"
 aiflow agents status
+aiflow agents start <task-id>
+aiflow agents done <task-id>
 ```
 
 When the command is not on PATH, use the source wrapper:
@@ -48,8 +60,9 @@ To install aiflow-kit into the current project from any repository:
 
 ```bat
 {{ AIFLOW_DEV_BAT }} init
+{{ AIFLOW_DEV_BAT }} frontend install
 {{ AIFLOW_DEV_BAT }} install-skills
-{{ AIFLOW_DEV_BAT }} context
+{{ AIFLOW_DEV_BAT }} context --compact
 ```
 
 To update both global aiflow Skills/plugins and the current project's aiflow files:
@@ -73,6 +86,8 @@ AGENTS.md
 CLAUDE.md
 .aiflow/config.toml
 .aiflow/context.md
+.aiflow/context.compact.md
+.aiflow/memory.md
 .aiflow/agents/
 .agents/skills/
 ```
@@ -95,6 +110,8 @@ If the user means Apache Airflow, clarify that it is a different data workflow s
 
 - Keep project facts in the project, not global rules.
 - Install only generic Skills globally.
+- Use project memory for reusable project facts; use global memory only for explicit user preferences.
+- Do not store secrets in memory files.
 - Do not use PowerShell `.ps1`; use `.bat`.
 - Do not write permanent environment variables with `setx`.
 - Network proxy policy is global for aiflow work: access China websites directly; access non-China websites through `http://127.0.0.1:10808` when network access is needed.

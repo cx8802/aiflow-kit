@@ -24,6 +24,7 @@ set "NPM_PREFIX=%TOOLS_ROOT%\npm-global"
 set "NPM_BIN=%NPM_PREFIX%\node_modules\.bin"
 set "PNPM_HOME=%TOOLS_ROOT%\pnpm"
 set "MAVEN_USER_HOME=%CACHE_ROOT%\maven-user-home"
+set "PLAYWRIGHT_BROWSERS_PATH=%TOOLS_ROOT%\ms-playwright"
 
 for %%D in (
     "%CACHE_ROOT%"
@@ -32,6 +33,8 @@ for %%D in (
     "%NPM_PREFIX%"
     "%NPM_BIN%"
     "%PNPM_HOME%"
+    "%TOOLS_ROOT%\frontend-tools"
+    "%PLAYWRIGHT_BROWSERS_PATH%"
     "%CACHE_ROOT%\go-build"
     "%CACHE_ROOT%\go-mod"
     "%CACHE_ROOT%\npm"
@@ -109,6 +112,7 @@ if not defined AIFLOW_ENV_QUIET (
     echo   NPM_CONFIG_CACHE=%NPM_CONFIG_CACHE%
     echo   NPM_CONFIG_PREFIX=%NPM_CONFIG_PREFIX%
     echo   PNPM_HOME=%PNPM_HOME%
+    echo   PLAYWRIGHT_BROWSERS_PATH=%PLAYWRIGHT_BROWSERS_PATH%
     echo   MAVEN_USER_HOME=%MAVEN_USER_HOME%
     echo   JAVA_HOME=%JAVA_HOME%
     if defined AIFLOW_USE_PROXY (

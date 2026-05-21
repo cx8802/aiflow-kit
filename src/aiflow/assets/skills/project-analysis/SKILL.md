@@ -8,10 +8,11 @@ description: Use when an AI coding task needs repository understanding, impact a
 ## Workflow
 
 1. Read `AGENTS.md`, `CLAUDE.md`, and `.aiflow/config.toml` when present.
-2. Run or read `aiflow context` if `.aiflow/context.md` is missing or stale.
-3. Inspect only files relevant to the user request.
-4. Identify affected modules, important files, risk areas, and verification commands.
-5. Keep project-specific conclusions in the project, not in user-global rules.
+2. Prefer `.aiflow/context.compact.md` when present; otherwise run or read `aiflow context`.
+3. Read `.aiflow/memory.md` when a task depends on prior project facts.
+4. Inspect only files relevant to the user request.
+5. Identify affected modules, important files, risk areas, and verification commands.
+6. Keep project-specific conclusions in the project, not in user-global rules.
 
 ## Output
 

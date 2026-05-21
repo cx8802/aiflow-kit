@@ -13,6 +13,7 @@ from ..core.agents import (
     summarize_agents,
     task_markdown,
     tasks_root,
+    update_task_state,
 )
 from ..core.files import write_text_safely
 from ..core.paths import ensure_aiflow_dir, project_root
@@ -39,6 +40,16 @@ def configure_agents_parser(sub) -> None:
     handoff.add_argument("--force", action="store_true", help="Overwrite existing handoff")
     handoff.set_defaults(func=run_agents)
 
+    for command, state, help_text in [
+        ("start", "in_progress", "Mark a task as in progress"),
+        ("done", "done", "Mark a task as done"),
+        ("block", "blocked", "Mark a task as blocked"),
+    ]:
+        state_cmd = agents_sub.add_parser(command, help=help_text)
+        state_cmd.add_argument("task_id", help="Task id or unique task id fragment")
+        state_cmd.add_argument("note", nargs="*", help="Optional note")
+        state_cmd.set_defaults(func=run_agents, agent_state=state)
+
 
 def run_agents(args: Namespace) -> int:
     command = args.agents_command
@@ -50,6 +61,8 @@ def run_agents(args: Namespace) -> int:
         return agents_status(args)
     if command == "handoff":
         return agents_handoff(args)
+    if command in {"start", "done", "block"}:
+        return agents_set_state(args)
     raise ValueError(f"Unknown agents command: {command}")
 
 
@@ -113,4 +126,16 @@ def agents_handoff(args: Namespace) -> int:
     base.mkdir(parents=True, exist_ok=True)
     path, status = write_text_safely(base / "handoff.md", default_handoff(goal), force=args.force)
     print(f"{status}: {path.relative_to(root)}")
+    return 0
+
+
+def agents_set_state(args: Namespace) -> int:
+    root = project_root()
+    note = " ".join(args.note).strip()
+    try:
+        path = update_task_state(root, args.task_id, args.agent_state, note)
+    except FileNotFoundError as exc:
+        print(str(exc))
+        return 2
+    print(f"updated: {path.relative_to(root)} -> {args.agent_state}")
     return 0

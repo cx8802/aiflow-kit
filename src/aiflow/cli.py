@@ -5,12 +5,16 @@ from pathlib import Path
 
 from . import __version__
 from .commands.agents import configure_agents_parser
+from .commands.claude_agent import configure_claude_agent_parser
+from .commands.config import configure_config_parser
 from .commands.context import run_context
 from .commands.db import configure_db_parser
 from .commands.doctor import run_doctor
 from .commands.env import configure_env_parser
+from .commands.frontend import configure_frontend_parser
 from .commands.init import run_init
 from .commands.install_skills import run_install_skills
+from .commands.memory import configure_memory_parser
 from .commands.plan import run_plan
 from .commands.review import run_review
 from .commands.verify import run_verify
@@ -37,6 +41,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_context = sub.add_parser("context", help="Generate .aiflow/context.md")
     p_context.add_argument("--output", type=Path, default=None, help="Optional output path")
+    p_context.add_argument("--compact", action="store_true", help="Also generate .aiflow/context.compact.md")
     p_context.set_defaults(func=run_context)
 
     p_plan = sub.add_parser("plan", help="Generate .aiflow/plan.md")
@@ -51,6 +56,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_verify = sub.add_parser("verify", help="Run configured verification commands")
     p_verify.add_argument("--dry-run", action="store_true", help="Only print commands")
     p_verify.add_argument("--continue-on-error", action="store_true", help="Continue after failures")
+    p_verify.add_argument("--auto", action="store_true", help="Infer missing verification commands from project files")
     p_verify.set_defaults(func=run_verify)
 
     p_install = sub.add_parser("install-skills", help="Install bundled skills")
@@ -67,8 +73,12 @@ def build_parser() -> argparse.ArgumentParser:
     p_install.set_defaults(func=run_install_skills)
 
     configure_agents_parser(sub)
+    configure_claude_agent_parser(sub)
+    configure_config_parser(sub)
     configure_db_parser(sub)
     configure_env_parser(sub)
+    configure_frontend_parser(sub)
+    configure_memory_parser(sub)
 
     return parser
 

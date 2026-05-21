@@ -283,6 +283,73 @@ def summarize_agents(root: Path) -> list[str]:
     return lines
 
 
+def find_task_file(root: Path, task_id: str) -> Path | None:
+    task_dir = tasks_root(root)
+    if not task_dir.exists():
+        return None
+    normalized = task_id[:-3] if task_id.endswith(".md") else task_id
+    direct = task_dir / f"{normalized}.md"
+    if direct.exists():
+        return direct
+    matches = sorted(task_dir.glob(f"*{normalized}*.md"))
+    return matches[0] if len(matches) == 1 else None
+
+
+def update_task_state(root: Path, task_id: str, state: str, note: str = "") -> Path:
+    task_file = find_task_file(root, task_id)
+    if not task_file:
+        raise FileNotFoundError(f"Task not found: {task_id}")
+    content = task_file.read_text(encoding="utf-8")
+    block = task_state_block(state, note)
+    marker = "## Agent State"
+    if marker in content:
+        before = content.split(marker, 1)[0].rstrip()
+        after_section = content.split(marker, 1)[1]
+        rest = ""
+        if "\n## " in after_section:
+            rest = "\n## " + after_section.split("\n## ", 1)[1].lstrip()
+        content = f"{before}\n\n{block}{rest}"
+    else:
+        content = f"{content.rstrip()}\n\n{block}"
+    task_file.write_text(content.rstrip() + "\n", encoding="utf-8", newline="\n")
+    update_status_file(root, task_file.stem, state, note)
+    return task_file
+
+
+def task_state_block(state: str, note: str = "") -> str:
+    lines = [
+        "## Agent State",
+        "",
+        f"- Status: {state}",
+        f"- Updated At: {now_stamp()}",
+    ]
+    if note:
+        lines.append(f"- Note: {note}")
+    lines.append("")
+    return "\n".join(lines)
+
+
+def update_status_file(root: Path, task_id: str, state: str, note: str = "") -> None:
+    status_path = agents_root(root) / "status.md"
+    status_path.parent.mkdir(parents=True, exist_ok=True)
+    if not status_path.exists():
+        status_path.write_text(default_status(), encoding="utf-8", newline="\n")
+    lines = status_path.read_text(encoding="utf-8").splitlines()
+    updated: list[str] = []
+    found = False
+    for line in lines:
+        stripped = line.strip()
+        if stripped.startswith(f"- {task_id}:"):
+            suffix = f" - {note}" if note else ""
+            updated.append(f"- {task_id}: {state}{suffix}")
+            found = True
+        else:
+            updated.append(line)
+    if not found:
+        updated.extend(["", f"- {task_id}: {state}" + (f" - {note}" if note else "")])
+    status_path.write_text("\n".join(updated).rstrip() + "\n", encoding="utf-8", newline="\n")
+
+
 def slugify(text: str) -> str:
     slug = sub(r"[^a-zA-Z0-9]+", "-", text.lower()).strip("-")
     return slug[:40].strip("-") or "goal"

@@ -1,0 +1,10 @@
+{
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "run": "node runner.mjs"
+  },
+  "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "*"
+  }
+}

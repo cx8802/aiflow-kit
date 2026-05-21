@@ -1,39 +1,43 @@
-# Plan: dynamic install path and environment config
+# Plan: Claude Agent SDK MVP
 
 ## Goal
 
-Make `aiflow-kit` portable across machines by detecting the real source path and local tool environment during install, then rendering Codex/Claude Skills with the detected path instead of hard-coded examples.
+Implement a Node-based Claude Agent SDK MVP for aiflow-kit, with project-local install, custom API/model configuration, safe default permissions, and run outputs under `.aiflow/claude-agent/`.
 
 ## Non-goals
 
-- Do not write permanent user environment variables.
-- Do not commit machine-local environment files.
-- Do not require PowerShell scripts.
+- Do not hard-code API keys, base URLs, or model names.
+- Do not require global npm installs.
+- Do not allow write/edit permissions by default.
+- Do not require a real Anthropic API key for dry-run, doctor, or unit tests.
+- Do not make SDK execution part of default verify.
 
 ## Impact scope
 
-- `src/aiflow/core/environment.py`
-- `src/aiflow/commands/env.py`
-- `src/aiflow/commands/install_skills.py`
-- `src/aiflow/commands/doctor.py`
+- `src/aiflow/commands/claude_agent.py`
+- `src/aiflow/core/claude_agent.py`
+- `node/claude-agent-runner/runner.mjs`
+- `node/claude-agent-runner/package.json`
 - `src/aiflow/cli.py`
-- `scripts/quick-install.bat`
-- `scripts/aiflow-update.bat`
-- `src/aiflow/assets/skills/aiflow-kit-*`
+- `src/aiflow/core/config.py`
+- `src/aiflow/assets/templates/config.toml`
 - `tests/test_cli_smoke.py`
-- `docs/18-安装路径与环境探测.md`
+- `docs/22-Claude-Agent-SDK设计方案.md`
 - `docs/README.md`
 
 ## Steps
 
-1. Add environment detection that reports project root, aiflow-kit root, scripts, plugin dirs, proxy, and tool versions.
-2. Write `.aiflow/env.local.toml` as the editable machine-local config.
-3. Render bundled Skills with the detected aiflow-kit root during install.
-4. Make quick install and update scripts run environment detection first.
-5. Update docs and tests.
+1. Add `[claude_agent]` config defaults and validation.
+2. Add project-local SDK install and doctor checks.
+3. Add Node runner that imports `@anthropic-ai/claude-agent-sdk`, executes read-only queries, and writes run artifacts.
+4. Add CLI commands: `install`, `doctor`, `run`, `explore`, `review-diff`, `compact`, `usage`.
+5. Add tests for dry-run, config validation, input generation, and usage listing.
+6. Update docs with implemented command behavior.
 
 ## Verification
 
 - `python -m compileall -q src tests`
 - `python -m unittest discover -s tests`
-- `aiflow verify --continue-on-error`
+- `aiflow claude-agent doctor`
+- `aiflow claude-agent run "..." --dry-run`
+- Run `git diff --check`.

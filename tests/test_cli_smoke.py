@@ -48,6 +48,57 @@ class CliSmokeTests(unittest.TestCase):
             self.assertIn("## File Scan", report)
             self.assertIn("README.md", report)
 
+    def test_context_compact_generates_compact_file(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            cwd = Path(tmp)
+            (cwd / "README.md").write_text("# Demo\n", encoding="utf-8")
+            memory = run_aiflow(cwd, "memory", "add", "Use project-level memory for repository facts")
+            self.assertEqual(memory.returncode, 0, memory.stderr)
+
+            result = run_aiflow(cwd, "context", "--compact")
+            self.assertEqual(result.returncode, 0, result.stderr)
+            compact = (cwd / ".aiflow" / "context.compact.md").read_text(encoding="utf-8")
+            self.assertIn("# Compact Context", compact)
+            self.assertIn("## Project Memory", compact)
+            self.assertIn("Use project-level memory", compact)
+
+    def test_memory_add_list_search_and_sensitive_guard(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            cwd = Path(tmp)
+            add = run_aiflow(cwd, "memory", "add", "Backend uses FastAPI", "--tag", "architecture")
+            self.assertEqual(add.returncode, 0, add.stderr)
+            self.assertTrue((cwd / ".aiflow" / "memory.md").exists())
+
+            listing = run_aiflow(cwd, "memory", "list")
+            self.assertEqual(listing.returncode, 0, listing.stderr)
+            self.assertIn("Backend uses FastAPI", listing.stdout)
+            self.assertIn("#architecture", listing.stdout)
+
+            search = run_aiflow(cwd, "memory", "search", "fastapi")
+            self.assertEqual(search.returncode, 0, search.stderr)
+            self.assertIn("Backend uses FastAPI", search.stdout)
+
+            sensitive = run_aiflow(cwd, "memory", "add", "password=123456")
+            self.assertEqual(sensitive.returncode, 2)
+            self.assertIn("Refusing to store text", sensitive.stdout)
+
+    def test_memory_global_scope_is_explicit(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            cwd = Path(tmp)
+            fake_home = cwd / "home"
+            fake_home.mkdir()
+            add = run_aiflow(
+                cwd,
+                "memory",
+                "add",
+                "Prefer BAT scripts on Windows",
+                "--global",
+                env={"USERPROFILE": str(fake_home)},
+            )
+            self.assertEqual(add.returncode, 0, add.stderr)
+            self.assertTrue((fake_home / ".aiflow" / "memory.md").exists())
+            self.assertFalse((cwd / ".aiflow" / "memory.md").exists())
+
     def test_review_handles_utf8_paths_on_windows(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             cwd = Path(tmp)
@@ -68,6 +119,8 @@ class CliSmokeTests(unittest.TestCase):
             self.assertTrue((cwd / ".agents" / "skills" / "project-analysis" / "SKILL.md").exists())
             self.assertTrue((cwd / ".agents" / "skills" / "code-review-release" / "SKILL.md").exists())
             self.assertTrue((cwd / ".agents" / "skills" / "multi-agent-orchestrator" / "SKILL.md").exists())
+            self.assertTrue((cwd / ".agents" / "skills" / "frontend-design" / "SKILL.md").exists())
+            self.assertTrue((cwd / ".agents" / "skills" / "playwright-verify" / "SKILL.md").exists())
             guide = (cwd / ".agents" / "skills" / "aiflow-kit-guide" / "SKILL.md").read_text(encoding="utf-8")
             self.assertIn(str(ROOT), guide)
             self.assertNotIn("{{ AIFLOW_KIT_ROOT }}", guide)
@@ -87,6 +140,82 @@ class CliSmokeTests(unittest.TestCase):
             show = run_aiflow(cwd, "env", "show")
             self.assertEqual(show.returncode, 0, show.stderr)
             self.assertIn("## Tools", show.stdout)
+
+    def test_frontend_install_dry_run_prints_project_local_playwright_commands(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            cwd = Path(tmp)
+            result = run_aiflow(cwd, "frontend", "install", "--dry-run")
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("@playwright/test", result.stdout)
+            self.assertIn("frontend-tools", result.stdout)
+            self.assertIn("ms-playwright", result.stdout)
+            self.assertIn("playwright", result.stdout)
+            self.assertIn("would ensure .gitignore entries", result.stdout)
+
+    def test_frontend_install_skip_browsers_uses_project_local_tools(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            cwd = Path(tmp)
+            fake_bin = cwd / "fake-bin"
+            fake_bin.mkdir()
+            fake_npm = fake_bin / ("npm.cmd" if os.name == "nt" else "npm")
+            if os.name == "nt":
+                fake_npm.write_text("@echo off\necho fake npm %*\nexit /b 0\n", encoding="utf-8")
+            else:
+                fake_npm.write_text("#!/bin/sh\necho fake npm \"$@\"\n", encoding="utf-8")
+                fake_npm.chmod(0o755)
+
+            env = {"PATH": str(fake_bin) + os.pathsep + os.environ.get("PATH", "")}
+            result = run_aiflow(cwd, "frontend", "install", "--skip-browsers", env=env)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertTrue((cwd / ".tools" / "frontend-tools").exists())
+            self.assertTrue((cwd / ".tools" / "ms-playwright").exists())
+            gitignore = (cwd / ".gitignore").read_text(encoding="utf-8")
+            self.assertIn(".tools/", gitignore)
+            self.assertIn(".cache/", gitignore)
+
+    def test_claude_agent_install_dry_run_uses_project_local_sdk_package(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            cwd = Path(tmp)
+            result = run_aiflow(cwd, "claude-agent", "install", "--dry-run")
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn(".tools", result.stdout)
+            self.assertIn("claude-agent", result.stdout)
+            self.assertIn("@anthropic-ai/claude-agent-sdk", result.stdout)
+
+    def test_claude_agent_run_dry_run_builds_read_only_input(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            cwd = Path(tmp)
+            (cwd / ".aiflow").mkdir()
+            (cwd / ".aiflow" / "context.compact.md").write_text("# Compact\n", encoding="utf-8")
+            result = run_aiflow(cwd, "claude-agent", "run", "summarize", "commands", "--model", "test-model", "--dry-run")
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn('"model": "test-model"', result.stdout)
+            self.assertIn('"allowedTools"', result.stdout)
+            self.assertIn('"Read"', result.stdout)
+            self.assertIn('"disallowedTools"', result.stdout)
+            self.assertIn('"Bash"', result.stdout)
+            self.assertIn(".aiflow/context.compact.md", result.stdout)
+
+    def test_claude_agent_run_requires_configured_alias_model(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            cwd = Path(tmp)
+            result = run_aiflow(cwd, "claude-agent", "run", "summarize", "--dry-run")
+            self.assertEqual(result.returncode, 2)
+            self.assertIn("claude_agent.small_model is empty", result.stdout)
+
+    def test_claude_agent_usage_reads_usage_file(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            cwd = Path(tmp)
+            usage_dir = cwd / ".aiflow" / "claude-agent"
+            usage_dir.mkdir(parents=True)
+            (usage_dir / "usage.jsonl").write_text(
+                '{"task":"run","model":"test-model","total_cost_usd":0.01}\n',
+                encoding="utf-8",
+            )
+            result = run_aiflow(cwd, "claude-agent", "usage")
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("test-model", result.stdout)
+            self.assertIn("total_cost_usd", result.stdout)
 
     def test_agents_init_plan_status_and_handoff(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -111,6 +240,38 @@ class CliSmokeTests(unittest.TestCase):
             self.assertEqual(handoff.returncode, 0, handoff.stderr)
             self.assertIn("written:", handoff.stdout)
 
+            start = run_aiflow(cwd, "agents", "start", "001-explore", "reading files")
+            self.assertEqual(start.returncode, 0, start.stderr)
+            status_text = (cwd / ".aiflow" / "agents" / "status.md").read_text(encoding="utf-8")
+            self.assertIn("in_progress", status_text)
+
+            done = run_aiflow(cwd, "agents", "done", "001-explore")
+            self.assertEqual(done.returncode, 0, done.stderr)
+            status_text = (cwd / ".aiflow" / "agents" / "status.md").read_text(encoding="utf-8")
+            self.assertIn("done", status_text)
+
+            block = run_aiflow(cwd, "agents", "block", "002-implement", "waiting for scope")
+            self.assertEqual(block.returncode, 0, block.stderr)
+            status_text = (cwd / ".aiflow" / "agents" / "status.md").read_text(encoding="utf-8")
+            self.assertIn("blocked", status_text)
+
+    def test_config_show_set_and_check(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            cwd = Path(tmp)
+            init = run_aiflow(cwd, "init", "--no-context")
+            self.assertEqual(init.returncode, 0, init.stderr)
+
+            set_cmd = run_aiflow(cwd, "config", "set", "commands.test", "python --version")
+            self.assertEqual(set_cmd.returncode, 0, set_cmd.stderr)
+
+            show = run_aiflow(cwd, "config", "show", "commands.test")
+            self.assertEqual(show.returncode, 0, show.stderr)
+            self.assertIn("python --version", show.stdout)
+
+            check = run_aiflow(cwd, "config", "check")
+            self.assertEqual(check.returncode, 0, check.stderr)
+            self.assertIn("config ok", check.stdout)
+
     def test_verify_dry_run_uses_configured_commands_only(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             cwd = Path(tmp)
@@ -130,6 +291,16 @@ test = "python --version"
             self.assertIn("lint: `python --version`", report)
             self.assertIn("test: `python --version`", report)
             self.assertIn("dry-run", report)
+
+    def test_verify_auto_detects_unittest(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            cwd = Path(tmp)
+            (cwd / "tests").mkdir()
+            (cwd / "tests" / "test_demo.py").write_text("import unittest\n", encoding="utf-8")
+            result = run_aiflow(cwd, "verify", "--auto", "--dry-run")
+            self.assertEqual(result.returncode, 0, result.stderr)
+            report = (cwd / ".aiflow" / "verify.md").read_text(encoding="utf-8")
+            self.assertIn("python -m unittest discover -s tests", report)
 
     def test_codex_user_install_requires_explicit_global_flags(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

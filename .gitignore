@@ -8,11 +8,14 @@ __pycache__/
 .tools/
 .agents/
 .aiflow/context.md
+.aiflow/context.compact.md
 .aiflow/dist/
 .aiflow/doctor.md
 .aiflow/review.md
 .aiflow/verify.md
 .aiflow/agents/
+.aiflow/claude-agent/
+.aiflow/sessions/
 .aiflow/env.local.toml
 .aiflow/*.local.toml
 .aiflow/secrets*.toml
