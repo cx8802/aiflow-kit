@@ -154,20 +154,28 @@ class CliSmokeTests(unittest.TestCase):
             self.assertEqual(show.returncode, 0, show.stderr)
             self.assertIn("## Tools", show.stdout)
 
-    def test_frontend_install_dry_run_prints_project_local_playwright_commands(self) -> None:
+    def test_frontend_install_dry_run_prints_aiflow_kit_playwright_commands(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             cwd = Path(tmp)
-            result = run_aiflow(cwd, "frontend", "install", "--dry-run")
+            kit_root = cwd / "kit-root"
+            result = run_aiflow(
+                cwd,
+                "frontend",
+                "install",
+                "--dry-run",
+                env={"AIFLOW_KIT_ROOT": str(kit_root)},
+            )
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertIn("@playwright/test", result.stdout)
-            self.assertIn("frontend-tools", result.stdout)
-            self.assertIn("ms-playwright", result.stdout)
+            self.assertIn(str(kit_root / ".tools" / "frontend-tools"), result.stdout)
+            self.assertIn(str(kit_root / ".tools" / "ms-playwright"), result.stdout)
             self.assertIn("playwright", result.stdout)
-            self.assertIn("would ensure .gitignore entries", result.stdout)
+            self.assertIn("would ensure aiflow-kit .gitignore entries", result.stdout)
 
-    def test_frontend_install_skip_browsers_uses_project_local_tools(self) -> None:
+    def test_frontend_install_skip_browsers_uses_aiflow_kit_tools(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             cwd = Path(tmp)
+            kit_root = cwd / "kit-root"
             fake_bin = cwd / "fake-bin"
             fake_bin.mkdir()
             fake_npm = fake_bin / ("npm.cmd" if os.name == "nt" else "npm")
@@ -177,12 +185,17 @@ class CliSmokeTests(unittest.TestCase):
                 fake_npm.write_text("#!/bin/sh\necho fake npm \"$@\"\n", encoding="utf-8")
                 fake_npm.chmod(0o755)
 
-            env = {"PATH": str(fake_bin) + os.pathsep + os.environ.get("PATH", "")}
+            env = {
+                "AIFLOW_KIT_ROOT": str(kit_root),
+                "PATH": str(fake_bin) + os.pathsep + os.environ.get("PATH", ""),
+            }
             result = run_aiflow(cwd, "frontend", "install", "--skip-browsers", env=env)
             self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertTrue((cwd / ".tools" / "frontend-tools").exists())
-            self.assertTrue((cwd / ".tools" / "ms-playwright").exists())
-            gitignore = (cwd / ".gitignore").read_text(encoding="utf-8")
+            self.assertTrue((kit_root / ".tools" / "frontend-tools").exists())
+            self.assertTrue((kit_root / ".tools" / "ms-playwright").exists())
+            self.assertFalse((cwd / ".tools").exists())
+            self.assertFalse((cwd / ".gitignore").exists())
+            gitignore = (kit_root / ".gitignore").read_text(encoding="utf-8")
             self.assertIn(".tools/", gitignore)
             self.assertIn(".cache/", gitignore)
 

@@ -11,7 +11,7 @@ call "%AIFLOW_KIT_ROOT%\scripts\aiflow-dev.bat" env detect
 if errorlevel 1 goto failed
 
 echo.
-echo [2/9] Install frontend design and Playwright tooling...
+echo [2/9] Install shared aiflow-kit frontend design and Playwright tooling...
 call "%AIFLOW_KIT_ROOT%\scripts\use-project-env.bat" quiet
 call "%AIFLOW_KIT_ROOT%\scripts\aiflow-dev.bat" frontend install
 if errorlevel 1 goto failed
@@ -69,7 +69,7 @@ echo.
 echo Updated local environment config:
 echo   %AIFLOW_KIT_ROOT%\.aiflow\env.local.toml
 echo.
-echo Updated frontend tools:
+echo Updated shared aiflow-kit frontend tools:
 echo   %AIFLOW_KIT_ROOT%\.tools\frontend-tools
 echo   %AIFLOW_KIT_ROOT%\.tools\ms-playwright
 echo.

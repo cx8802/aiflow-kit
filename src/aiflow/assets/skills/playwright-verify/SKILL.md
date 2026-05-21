@@ -25,7 +25,7 @@ aiflow frontend install
 
 ## Project Commands
 
-Install Playwright into project-local tools:
+Install or refresh the shared `aiflow-kit` Playwright runtime:
 
 ```bat
 aiflow frontend install

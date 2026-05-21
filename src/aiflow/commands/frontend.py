@@ -6,14 +6,15 @@ import subprocess
 from argparse import Namespace
 from pathlib import Path
 
-from ..core.paths import ensure_aiflow_dir, project_root
+from ..core.environment import aiflow_kit_root
+from ..core.paths import ensure_aiflow_dir
 
 
 def configure_frontend_parser(sub) -> None:
     frontend = sub.add_parser("frontend", help="Install and verify frontend design tooling")
     frontend_sub = frontend.add_subparsers(dest="frontend_command", required=True)
 
-    install = frontend_sub.add_parser("install", help="Install project-local Playwright tooling")
+    install = frontend_sub.add_parser("install", help="Install aiflow-kit Playwright tooling")
     install.add_argument("--dry-run", action="store_true", help="Print commands without running them")
     install.add_argument("--skip-browsers", action="store_true", help="Install npm package only")
     install.add_argument("--no-proxy", action="store_true", help="Do not set 10808 proxy for browser download")
@@ -27,7 +28,7 @@ def run_frontend(args: Namespace) -> int:
 
 
 def frontend_install(args: Namespace) -> int:
-    root = project_root()
+    root = aiflow_kit_root()
     ensure_aiflow_dir(root)
     tools_root = root / ".tools"
     frontend_tools = tools_root / "frontend-tools"
@@ -47,7 +48,7 @@ def frontend_install(args: Namespace) -> int:
     print(f"frontend tools: {frontend_tools}")
     print(f"playwright browsers: {browsers_path}")
     if args.dry_run:
-        print("would ensure .gitignore entries: .tools/, .cache/")
+        print("would ensure aiflow-kit .gitignore entries: .tools/, .cache/")
     else:
         frontend_tools.mkdir(parents=True, exist_ok=True)
         browsers_path.mkdir(parents=True, exist_ok=True)

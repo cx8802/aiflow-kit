@@ -2,39 +2,36 @@
 
 ## Goal
 
-Keep Claude Agent SDK runtime ownership in `aiflow-kit`, while target projects own only Claude Agent enablement, model/provider policy, permissions, budget, secrets, and run artifacts.
+Keep Playwright npm packages and browser downloads in `aiflow-kit`, so target projects can use the shared frontend verification runtime without creating their own `.tools/frontend-tools` or `.tools/ms-playwright`.
 
 ## Non-goals
 
-- Do not move run artifacts, local secrets, or target-project context out of the target repository.
-- Do not change frontend Playwright tooling ownership.
-- Do not expose `package_dir` or runner path knobs in newly generated project config.
+- Do not move unrelated project-local Go, Node, Maven, or cache policy out of target projects.
+- Do not change frontend project config, generated project context, or project skill ownership.
+- Do not make Playwright a user-global npm install.
 
 ## Impact Scope
 
-- `src/aiflow/assets/templates/config.toml`
-- `src/aiflow/core/claude_agent.py`
-- `src/aiflow/core/config.py`
+- `src/aiflow/commands/frontend.py`
 - `tests/test_cli_smoke.py`
-- `docs/22-Claude-Agent-SDK设计方案.md`
+- frontend install and update instructions in scripts, skills, and docs
 
 ## Steps
 
-1. Add tests proving generated project config excludes kit-owned Claude Agent runtime paths.
-2. Remove kit-owned `package_dir` and runner path fields from project defaults, templates, and validation.
-3. Keep core runtime resolution inside `aiflow-kit`.
-4. Update design docs so project-level policy and kit-level runtime ownership are explicit.
-5. Run focused tests and repository verification.
+1. Add regression coverage proving frontend installs target the kit runtime root.
+2. Resolve Playwright package and browser directories from `aiflow-kit` instead of the target repository.
+3. Stop target-project install guidance from claiming Playwright tooling is copied into each project.
+4. Keep quick install and update scripts responsible for preparing the shared runtime.
+5. Run repository verification.
 
 ## Verification
 
-- `python -m unittest tests.test_cli_smoke.CliSmokeTests.test_init_keeps_claude_agent_runtime_paths_out_of_project_config`
 - `python -m unittest discover -s tests`
 - `.\.venv\Scripts\aiflow.exe verify --auto`
 - `.\.venv\Scripts\python.exe -m compileall src`
 
 ## Risks
 
-- Source checkout and installed-package layouts must still resolve the bundled runner and SDK directory consistently.
-- Existing project configs that still contain `package_dir` or `runner` should not break reads.
-- Target repositories still keep `.aiflow/claude-agent/` run outputs and ignored local secret files.
+- Existing docs and skills may still imply a target project owns `.tools/frontend-tools`.
+- Callers that invoke `aiflow frontend install` from another repository must still see a usable shared runtime path.
+- Browser downloads remain potentially slow the first time the shared runtime is prepared.

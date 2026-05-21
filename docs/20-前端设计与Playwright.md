@@ -5,7 +5,7 @@
 - `frontend-design`：负责 UI 设计、视觉质量、布局、组件状态和响应式方案。
 - `frontend-verify`：负责 UI 改动后的验证清单。
 - `playwright-verify`：负责浏览器截图、交互和视口验证流程。
-- `@playwright/test`：安装到项目级 `.tools/frontend-tools`，不写用户全局 npm。
+- `@playwright/test`：安装到 `aiflow-kit` 共享 `.tools/frontend-tools`，不写用户全局 npm。
 
 ## 自动安装
 
@@ -22,16 +22,16 @@ scripts\quick-install.bat
 scripts\aiflow-update.bat
 ```
 
-安装位置：
+安装位置（相对 `aiflow-kit` 根目录）：
 
 ```text
 .tools/frontend-tools
 .tools/ms-playwright
 ```
 
-`.tools/` 已加入 `.gitignore`。
+`aiflow-kit` 的 `.tools/` 已加入 `.gitignore`。在其他项目里执行 `aiflow frontend install` 时，仍会复用该共享目录，不会给目标项目创建前端工具目录。
 
-在其他项目里执行 `aiflow frontend install` 时，如果目标项目缺少忽略规则，会自动给 `.gitignore` 追加：
+首次安装时如果 `aiflow-kit` 缺少忽略规则，会自动给它的 `.gitignore` 追加：
 
 ```text
 .tools/

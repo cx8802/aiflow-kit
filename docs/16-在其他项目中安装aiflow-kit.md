@@ -18,7 +18,6 @@ agent 应该从当前项目根目录调用：
 
 ```bat
 D:\code_work\aiflow-kit\scripts\aiflow-dev.bat init
-D:\code_work\aiflow-kit\scripts\aiflow-dev.bat frontend install
 D:\code_work\aiflow-kit\scripts\aiflow-dev.bat install-skills
 D:\code_work\aiflow-kit\scripts\aiflow-dev.bat context --compact
 ```
@@ -34,9 +33,6 @@ CLAUDE.md
 ├── config.toml
 ├── context.md
 └── context.compact.md
-.tools/
-├── frontend-tools/
-└── ms-playwright/
 .agents/
 └── skills/
     ├── aiflow-kit-guide/
@@ -51,7 +47,7 @@ CLAUDE.md
 ```
 
 注意：项目级安装不会写入用户全局目录。
-`.tools/` 是运行时工具目录，应该由目标项目 `.gitignore` 忽略。
+Playwright 运行时工具复用 `aiflow-kit/.tools/`，不会在目标项目里再安装一份。
 `.aiflow/memory.md` 会在第一次执行 `aiflow memory add` 时创建。
 
 ## 当前会话快捷方式
@@ -150,6 +146,6 @@ D:\code_work\aiflow-kit\scripts\aiflow-update.bat
 - Codex 插件包。
 - 当前项目 `.agents/skills`。
 - 当前项目 `.aiflow/context.md`。
-- 当前项目 `.tools/frontend-tools` 和 `.tools/ms-playwright`。
+- `aiflow-kit` 共享 `.tools/frontend-tools` 和 `.tools/ms-playwright`。
 
 更新全局 Skills 或插件后，可能需要重启 Codex / Claude Code。

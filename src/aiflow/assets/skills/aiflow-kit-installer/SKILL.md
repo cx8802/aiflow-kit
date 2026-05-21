@@ -25,7 +25,6 @@ When the user says "install aiflow-kit in this project", run these commands from
 
 ```bat
 {{ AIFLOW_DEV_BAT }} init
-{{ AIFLOW_DEV_BAT }} frontend install
 {{ AIFLOW_DEV_BAT }} install-skills
 {{ AIFLOW_DEV_BAT }} context --compact
 ```
@@ -39,11 +38,9 @@ CLAUDE.md
 .aiflow/context.md
 .aiflow/context.compact.md
 .agents/skills/
-.tools/frontend-tools/
-.tools/ms-playwright/
 ```
 
-`.tools/` is project-local runtime output and should stay ignored by git.
+Playwright runtime packages and browser downloads stay in the shared `aiflow-kit` `.tools/` directory.
 `.aiflow/memory.md` is created later by `aiflow memory add`.
 
 ## Optional Current-Session Convenience

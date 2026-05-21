@@ -60,7 +60,6 @@ To install aiflow-kit into the current project from any repository:
 
 ```bat
 {{ AIFLOW_DEV_BAT }} init
-{{ AIFLOW_DEV_BAT }} frontend install
 {{ AIFLOW_DEV_BAT }} install-skills
 {{ AIFLOW_DEV_BAT }} context --compact
 ```
