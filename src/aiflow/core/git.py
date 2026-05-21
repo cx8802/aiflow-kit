@@ -9,7 +9,14 @@ def git_available(root: Path) -> bool:
 
 
 def run_git(root: Path, args: list[str]) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(["git", *args], cwd=root, text=True, capture_output=True)
+    return subprocess.run(
+        ["git", *args],
+        cwd=root,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        capture_output=True,
+    )
 
 
 def git_lines(root: Path, args: list[str]) -> list[str]:

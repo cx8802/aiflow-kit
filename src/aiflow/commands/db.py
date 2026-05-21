@@ -2,16 +2,17 @@ from __future__ import annotations
 
 import json
 from argparse import Namespace
-from pathlib import Path
 
 from ..core.databases import (
     DATABASE_TYPES,
     database_config_path,
     database_local_path,
+    list_database_tables,
     load_databases,
     redact_profile,
+    resolve_database_profile,
     save_database_file,
-    sqlite_test,
+    test_database_profile,
 )
 from ..core.paths import ensure_aiflow_dir, project_root
 
@@ -28,6 +29,7 @@ def configure_db_parser(sub) -> None:
     add.add_argument("--port", type=int, default=0)
     add.add_argument("--database", default="")
     add.add_argument("--path", default="", help="SQLite database path")
+    add.add_argument("--driver", default="", help="Driver name, mainly for SQL Server ODBC")
     add.add_argument("--dsn-env", default="")
     add.add_argument("--user-env", default="")
     add.add_argument("--password-env", default="")
@@ -49,6 +51,11 @@ def configure_db_parser(sub) -> None:
     test.add_argument("name")
     test.set_defaults(func=run_db)
 
+    tables = db_sub.add_parser("tables", help="List tables or collections for a database profile")
+    tables.add_argument("name")
+    tables.add_argument("--schema", default="", help="Optional schema or owner filter")
+    tables.set_defaults(func=run_db)
+
 
 def run_db(args: Namespace) -> int:
     command = args.db_command
@@ -60,6 +67,8 @@ def run_db(args: Namespace) -> int:
         return db_show(args)
     if command == "test":
         return db_test(args)
+    if command == "tables":
+        return db_tables(args)
     raise ValueError(f"Unknown db command: {command}")
 
 
@@ -86,6 +95,7 @@ def db_add(args: Namespace) -> int:
         "port": args.port,
         "database": args.database,
         "path": args.path,
+        "driver": args.driver,
         "dsn_env": args.dsn_env,
         "user_env": args.user_env,
         "password_env": args.password_env,
@@ -132,17 +142,24 @@ def db_show(args: Namespace) -> int:
 
 def db_test(args: Namespace) -> int:
     root = project_root()
-    config, _local = load_databases(root)
-    profile = config.get("databases", {}).get(args.name)
+    profile = resolve_database_profile(root, args.name)
     if not profile:
         print(f"Database profile not found: {args.name}")
         return 2
-    if profile.get("type") == "sqlite":
-        db_path = Path(profile.get("path") or profile.get("database", ""))
-        if not db_path.is_absolute():
-            db_path = root / db_path
-        ok, message = sqlite_test(db_path)
-        print(message)
-        return 0 if ok else 1
-    print(f"Test for {profile.get('type')} requires a project-selected client or driver. Configuration is saved.")
-    return 0
+    result = test_database_profile(root, profile)
+    print(result.message)
+    return 0 if result.ok else 1
+
+
+def db_tables(args: Namespace) -> int:
+    root = project_root()
+    profile = resolve_database_profile(root, args.name)
+    if not profile:
+        print(f"Database profile not found: {args.name}")
+        return 2
+    result = list_database_tables(root, profile, args.schema)
+    print(result.message)
+    if result.ok and result.rows is not None:
+        for row in result.rows:
+            print(row)
+    return 0 if result.ok else 1

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import sqlite3
 import subprocess
 import sys
 import tempfile
@@ -46,6 +47,18 @@ class CliSmokeTests(unittest.TestCase):
             report = (cwd / ".aiflow" / "context.md").read_text(encoding="utf-8")
             self.assertIn("## File Scan", report)
             self.assertIn("README.md", report)
+
+    def test_review_handles_utf8_paths_on_windows(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            cwd = Path(tmp)
+            init = subprocess.run(["git", "init"], cwd=cwd, text=True, capture_output=True)
+            if init.returncode != 0:
+                self.skipTest("git is not available")
+            (cwd / "数据库.md").write_text("# demo\n", encoding="utf-8")
+
+            result = run_aiflow(cwd, "review")
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertTrue((cwd / ".aiflow" / "review.md").exists())
 
     def test_install_skills_defaults_to_project_codex_skills(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -102,6 +115,41 @@ test = "python --version"
             test = run_aiflow(cwd, "db", "test", "local")
             self.assertEqual(test.returncode, 0, test.stderr)
             self.assertTrue((cwd / "data" / "local.db").exists())
+
+            conn = sqlite3.connect(cwd / "data" / "local.db")
+            conn.execute("create table demo_item (id integer primary key)")
+            conn.close()
+
+            tables = run_aiflow(cwd, "db", "tables", "local")
+            self.assertEqual(tables.returncode, 0, tables.stderr)
+            self.assertIn("sqlite tables: 1", tables.stdout)
+            self.assertIn("demo_item", tables.stdout)
+
+    def test_db_add_supports_sqlserver_driver_metadata(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            cwd = Path(tmp)
+            add = run_aiflow(
+                cwd,
+                "db",
+                "add",
+                "mssql",
+                "--type",
+                "sqlserver",
+                "--host",
+                "127.0.0.1",
+                "--port",
+                "1433",
+                "--database",
+                "app",
+                "--driver",
+                "ODBC Driver 18 for SQL Server",
+            )
+            self.assertEqual(add.returncode, 0, add.stderr)
+
+            show = run_aiflow(cwd, "db", "show", "mssql")
+            self.assertEqual(show.returncode, 0, show.stderr)
+            self.assertIn('"type": "sqlserver"', show.stdout)
+            self.assertIn('"driver": "ODBC Driver 18 for SQL Server"', show.stdout)
 
     def test_db_refuses_plain_secret_without_local_file(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
