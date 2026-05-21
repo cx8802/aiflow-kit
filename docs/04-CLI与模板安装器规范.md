@@ -13,6 +13,7 @@
 | `aiflow review` | 汇总 diff 和风险 | `.aiflow/review.md` |
 | `aiflow verify` | 执行或列出验证命令 | `.aiflow/verify.md` |
 | `aiflow install-skills` | 安装 Skills 到目标位置 | 复制结果和冲突报告 |
+| `aiflow browser` | 浏览器平台打包、adapter capture bridge 和本地 capture | `.aiflow/browser/` |
 
 ## 配置文件
 
@@ -54,6 +55,16 @@ enabled = false
 dev_url = "http://localhost:3000"
 desktop_viewport = "1440x900"
 mobile_viewport = "390x844"
+
+[browser]
+enabled = false
+host = "127.0.0.1"
+port = 8765
+capture_dir = ".aiflow/browser/captures"
+elements_dir = ".aiflow/browser/elements"
+actions_dir = ".aiflow/browser/actions"
+token_file = ".aiflow/browser/token"
+max_payload_bytes = 200000
 
 [review]
 require_tests = true

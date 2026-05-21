@@ -1,0 +1,11 @@
+{
+  "private": true,
+  "name": "aiflow-browser-extension",
+  "version": "0.1.0",
+  "description": "Chrome/Edge extension source for the aiflow browser platform.",
+  "scripts": {
+    "check": "node --check background.js && node --check adapter-runtime.js && node --check sidepanel.js"
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}

@@ -47,6 +47,16 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "desktop_viewport": "1440x900",
         "mobile_viewport": "390x844",
     },
+    "browser": {
+        "enabled": False,
+        "host": "127.0.0.1",
+        "port": 8765,
+        "capture_dir": ".aiflow/browser/captures",
+        "elements_dir": ".aiflow/browser/elements",
+        "actions_dir": ".aiflow/browser/actions",
+        "token_file": ".aiflow/browser/token",
+        "max_payload_bytes": 200_000,
+    },
     "review": {
         "require_tests": True,
         "require_verification_summary": True,
@@ -209,6 +219,19 @@ def validate_config(config: dict[str, Any]) -> list[str]:
         require_str(frontend, "dev_url", "frontend.dev_url", errors)
         require_str(frontend, "desktop_viewport", "frontend.desktop_viewport", errors)
         require_str(frontend, "mobile_viewport", "frontend.mobile_viewport", errors)
+
+    browser = config.get("browser", {})
+    if not isinstance(browser, dict):
+        errors.append("browser must be a table")
+    else:
+        require_bool(browser, "enabled", "browser.enabled", errors)
+        require_str(browser, "host", "browser.host", errors)
+        require_int(browser, "port", "browser.port", errors)
+        require_str(browser, "capture_dir", "browser.capture_dir", errors)
+        require_str(browser, "elements_dir", "browser.elements_dir", errors)
+        require_str(browser, "actions_dir", "browser.actions_dir", errors)
+        require_str(browser, "token_file", "browser.token_file", errors)
+        require_int(browser, "max_payload_bytes", "browser.max_payload_bytes", errors)
 
     review = config.get("review", {})
     if not isinstance(review, dict):

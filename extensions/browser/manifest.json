@@ -1,0 +1,25 @@
+{
+  "manifest_version": 3,
+  "name": "AIFlow 浏览器助手",
+  "version": "0.1.0",
+  "description": "连接本地 aiflow 项目后台，采集页面上下文并选择页面元素。",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "sidePanel",
+    "storage"
+  ],
+  "host_permissions": [
+    "http://127.0.0.1/*",
+    "http://localhost/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "打开 AIFlow 浏览器助手"
+  },
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  }
+}

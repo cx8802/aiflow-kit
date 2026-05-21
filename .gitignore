@@ -15,6 +15,7 @@ __pycache__/
 .aiflow/verify.md
 .aiflow/agents/
 .aiflow/claude-agent/
+.aiflow/browser/
 .aiflow/sessions/
 .aiflow/env.local.toml
 .aiflow/*.local.toml

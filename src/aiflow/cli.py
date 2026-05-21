@@ -5,6 +5,7 @@ from pathlib import Path
 
 from . import __version__
 from .commands.agents import configure_agents_parser
+from .commands.browser import configure_browser_parser
 from .commands.claude_agent import configure_claude_agent_parser
 from .commands.config import configure_config_parser
 from .commands.context import run_context
@@ -73,6 +74,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_install.set_defaults(func=run_install_skills)
 
     configure_agents_parser(sub)
+    configure_browser_parser(sub)
     configure_claude_agent_parser(sub)
     configure_config_parser(sub)
     configure_db_parser(sub)

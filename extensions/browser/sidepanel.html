@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>AIFlow 浏览器助手</title>
+    <link rel="stylesheet" href="sidepanel.css">
+  </head>
+  <body>
+    <main class="shell">
+      <header class="masthead">
+        <p class="eyebrow">浏览器自动化</p>
+        <h1>AIFlow 浏览器助手</h1>
+        <p class="summary">连接本地项目后台，选中页面元素后交给后端处理。</p>
+      </header>
+
+      <section class="panel connection-panel">
+        <label class="field">
+          <span>桥接地址</span>
+          <input id="bridge-url" type="url" value="http://127.0.0.1:8765" spellcheck="false">
+        </label>
+        <label class="field">
+          <span>项目令牌</span>
+          <input id="project-token" type="password" autocomplete="off" spellcheck="false">
+        </label>
+        <div class="button-row">
+          <button id="save-settings" class="primary" type="button">连接</button>
+          <button id="check-bridge" class="secondary" type="button">刷新状态</button>
+        </div>
+      </section>
+
+      <section class="panel picker-panel">
+        <div class="section-head">
+          <div>
+            <h2>页面元素</h2>
+            <p>点击后在当前网页移动鼠标，单击要交给后端处理的元素。</p>
+          </div>
+        </div>
+        <button id="pick-element" class="primary large-action" type="button">选择页面元素</button>
+        <label class="field result-field">
+          <span>最近选中</span>
+          <textarea id="element-result" rows="8" readonly></textarea>
+        </label>
+      </section>
+
+      <details class="advanced">
+        <summary>高级功能</summary>
+
+        <section class="panel">
+          <label class="field">
+            <span>采集备注</span>
+            <textarea id="capture-note" rows="4" placeholder="说明这段网页上下文为什么重要"></textarea>
+          </label>
+          <button id="capture-selection" type="button">采集当前页面</button>
+        </section>
+
+        <section class="panel adapter-panel">
+          <div class="section-head">
+            <h2>适配器动作</h2>
+            <button id="reload-adapters" class="icon-button" type="button" title="重新加载适配器">重载</button>
+          </div>
+          <label class="field">
+            <span>适配器</span>
+            <select id="adapter-select"></select>
+          </label>
+          <label class="field">
+            <span>动作</span>
+            <select id="action-select"></select>
+          </label>
+          <label class="field">
+            <span>选择器</span>
+            <input id="action-selector" type="text" placeholder="#submit, [data-row], main h1" spellcheck="false">
+          </label>
+          <label class="field">
+            <span>值</span>
+            <textarea id="action-value" rows="3" placeholder="用于填表动作"></textarea>
+          </label>
+          <button id="run-action" type="button">执行动作</button>
+          <label class="field result-field">
+            <span>最近结果</span>
+            <textarea id="action-result" rows="5" readonly></textarea>
+          </label>
+        </section>
+
+        <section class="panel automation-panel">
+          <div class="section-head">
+            <h2>后台自动化</h2>
+          </div>
+          <div class="button-row">
+            <button id="run-automation" type="button">执行下一条</button>
+            <button id="toggle-executor" type="button">启动执行器</button>
+          </div>
+          <label class="field result-field">
+            <span>自动化结果</span>
+            <textarea id="automation-result" rows="5" readonly></textarea>
+          </label>
+        </section>
+      </details>
+
+      <section class="status-strip" aria-live="polite">
+        <span id="status-dot" class="status-dot"></span>
+        <p id="status-text">尚未连接桥接服务。</p>
+      </section>
+    </main>
+    <script src="adapter-runtime.js"></script>
+    <script src="sidepanel.js"></script>
+  </body>
+</html>
