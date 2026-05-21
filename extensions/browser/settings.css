@@ -7,7 +7,6 @@
   --panel: #ffffff;
   --accent: #0f766e;
   --accent-strong: #115e59;
-  --soft: #e8f3f1;
   --warn: #b45309;
   --ok: #15803d;
   --danger: #dc2626;
@@ -28,10 +27,19 @@ body {
 
 .shell {
   min-height: 100vh;
+  max-width: 760px;
   display: grid;
   align-content: start;
   gap: 14px;
-  padding: 18px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.compact-shell {
+  min-height: auto;
+  max-width: none;
+  margin: 0;
+  padding: 14px;
 }
 
 .masthead {
@@ -42,8 +50,7 @@ body {
 .eyebrow,
 h1,
 h2,
-p,
-summary {
+p {
   margin: 0;
 }
 
@@ -66,6 +73,7 @@ h2 {
 .summary,
 .section-head p {
   color: var(--muted);
+  max-width: 62ch;
 }
 
 .panel {
@@ -155,16 +163,6 @@ button:disabled {
   gap: 4px;
 }
 
-.icon-button {
-  width: auto;
-  min-width: 72px;
-  min-height: 32px;
-  padding: 5px 9px;
-  border-color: var(--line);
-  background: #fff;
-  font-size: 12px;
-}
-
 .button-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -175,36 +173,6 @@ button:disabled {
   background: #f3f6f8;
   font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
   font-size: 12px;
-}
-
-.advanced {
-  display: grid;
-  gap: 12px;
-}
-
-.advanced summary {
-  min-height: 38px;
-  display: grid;
-  align-items: center;
-  padding: 8px 10px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--soft);
-  color: var(--accent-strong);
-  cursor: pointer;
-  font-weight: 700;
-}
-
-.advanced[open] {
-  gap: 12px;
-}
-
-.advanced[open] summary {
-  margin-bottom: 12px;
-}
-
-.advanced .panel + .panel {
-  margin-top: 12px;
 }
 
 .status-strip {

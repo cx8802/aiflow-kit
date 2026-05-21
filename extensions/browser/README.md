@@ -1,4 +1,4 @@
-﻿# AIFlow 浏览器扩展
+# AIFlow 浏览器扩展
 
 这个目录是 Chrome/Edge 扩展源码。扩展运行时保持零 npm 依赖：
 
@@ -20,12 +20,14 @@ npm run check
 aiflow browser serve
 ```
 
-2. 在扩展侧栏填写 bridge 地址和 project token。
-3. 点击 `连接`。
-4. 点击 `选择页面元素`，在当前网页中单击目标元素。
-5. bridge 会把元素摘要写到 `.aiflow/browser/elements/`。
+2. 点击扩展图标，打开独立配置页。
+3. 填写 bridge 地址和 project token，点击 `连接`。
+4. 打开目标网页的 DevTools。
+5. 用 DevTools 左上角的原生元素选择工具选中页面元素。
+6. 切到 DevTools 的 `AIFlow` 面板，点击 `发送当前选中元素`。
+7. bridge 会把元素摘要写到 `.aiflow/browser/elements/`。
 
-元素选择器不会读取 cookie、localStorage、sessionStorage 或请求头；`password` 和 `hidden` 输入框的值不会写回。
+元素读取基于 DevTools 当前 `$0` 元素。扩展不会读取 cookie、localStorage、sessionStorage 或请求头；`password` 和 `hidden` 输入框的值不会写回。
 
 ## 后台自动化
 
@@ -36,6 +38,4 @@ aiflow browser automate --step "fill;;#search;;aiflow" --step "click;;button[typ
 aiflow browser serve
 ```
 
-扩展侧栏的 `高级功能` 里可以手动执行下一条任务，也可以启动轮询执行器。插件只负责在当前浏览器页面执行任务，任务来源和结果落盘都在项目后台。
-
-只有在明确需要 TypeScript 编译、lint 或 Playwright 扩展端到端验证时，才在这里增加开发依赖。页面动作本身应优先保持直接 DOM 和 Chrome extension API 调用。
+扩展页面不提供队列执行器或 adapter 表单。插件只负责配置连接，以及在 DevTools 面板读取当前选中的页面元素；任务来源、动作决策和结果落盘都在项目后台。

@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>AIFlow DevTools</title>
+    <link rel="stylesheet" href="settings.css">
+  </head>
+  <body>
+    <main class="shell compact-shell">
+      <header class="masthead">
+        <p class="eyebrow">DevTools 面板</p>
+        <h1>AIFlow 元素读取</h1>
+        <p class="summary">读取开发者工具当前选中的页面元素，并发送到本地项目后台。</p>
+      </header>
+
+      <section class="panel connection-panel">
+        <label class="field">
+          <span>桥接地址</span>
+          <input id="bridge-url" type="url" value="http://127.0.0.1:8765" spellcheck="false">
+        </label>
+        <label class="field">
+          <span>项目令牌</span>
+          <input id="project-token" type="password" autocomplete="off" spellcheck="false">
+        </label>
+        <div class="button-row">
+          <button id="save-settings" class="primary" type="button">连接</button>
+          <button id="check-bridge" class="secondary" type="button">刷新状态</button>
+        </div>
+      </section>
+
+      <section class="panel picker-panel">
+        <div class="section-head">
+          <div>
+            <h2>当前选中元素</h2>
+            <p>使用 DevTools 原生元素选择工具选中目标元素后发送。</p>
+          </div>
+        </div>
+        <button id="pick-element" class="primary large-action" type="button">发送当前选中元素</button>
+        <label class="field result-field">
+          <span>最近选中</span>
+          <textarea id="element-result" rows="8" readonly></textarea>
+        </label>
+      </section>
+
+      <section class="status-strip" aria-live="polite">
+        <span id="status-dot" class="status-dot"></span>
+        <p id="status-text">尚未连接桥接服务。</p>
+      </section>
+    </main>
+    <script src="devtools-panel.js"></script>
+  </body>
+</html>

@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>AIFlow 浏览器配置</title>
+    <link rel="stylesheet" href="settings.css">
+  </head>
+  <body>
+    <main class="shell">
+      <header class="masthead">
+        <p class="eyebrow">浏览器配置</p>
+        <h1>AIFlow 浏览器配置</h1>
+        <p class="summary">连接本地项目后台；页面元素由 Chrome/Edge 开发者工具中的 AIFlow 面板获取。</p>
+      </header>
+
+      <section class="panel connection-panel">
+        <label class="field">
+          <span>桥接地址</span>
+          <input id="bridge-url" type="url" value="http://127.0.0.1:8765" spellcheck="false">
+        </label>
+        <label class="field">
+          <span>项目令牌</span>
+          <input id="project-token" type="password" autocomplete="off" spellcheck="false">
+        </label>
+        <div class="button-row">
+          <button id="save-settings" class="primary" type="button">连接</button>
+          <button id="check-bridge" class="secondary" type="button">刷新状态</button>
+        </div>
+      </section>
+
+      <section class="status-strip" aria-live="polite">
+        <span id="status-dot" class="status-dot"></span>
+        <p id="status-text">尚未连接桥接服务。</p>
+      </section>
+    </main>
+    <script src="settings.js"></script>
+  </body>
+</html>

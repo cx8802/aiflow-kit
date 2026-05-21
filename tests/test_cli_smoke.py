@@ -434,6 +434,53 @@ class CliSmokeTests(unittest.TestCase):
             self.assertIn('"Bash"', result.stdout)
             self.assertIn(".aiflow/context.compact.md", result.stdout)
 
+    def test_claude_agent_run_dry_run_includes_task_edit_scope_and_verify_after(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            cwd = Path(tmp)
+            task_dir = cwd / ".aiflow" / "agents" / "tasks"
+            task_dir.mkdir(parents=True)
+            (task_dir / "001-demo.md").write_text("# 001-demo\n\n## Objective\n\nUpdate docs.\n", encoding="utf-8")
+
+            result = run_aiflow(
+                cwd,
+                "claude-agent",
+                "run",
+                "update",
+                "docs",
+                "--model",
+                "test-model",
+                "--dry-run",
+                "--allow-edit",
+                "--edit-scope",
+                "docs",
+                "--task-id",
+                "001-demo",
+                "--verify-after",
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            payload = json.loads(result.stdout)
+            self.assertEqual(payload["taskId"], "001-demo")
+            self.assertEqual(payload["editScope"], ["docs"])
+            self.assertEqual(payload["postRunVerifyCommand"], "aiflow verify --auto --continue-on-error")
+            self.assertIn("Aiflow Task Binding", payload["prompt"])
+            self.assertIn("Do not edit files outside", payload["prompt"])
+
+    def test_claude_agent_edit_scope_requires_allow_edit(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            result = run_aiflow(
+                Path(tmp),
+                "claude-agent",
+                "run",
+                "update",
+                "--model",
+                "test-model",
+                "--dry-run",
+                "--edit-scope",
+                "src",
+            )
+            self.assertEqual(result.returncode, 2)
+            self.assertIn("--edit-scope requires --allow-edit", result.stdout)
+
     def test_claude_agent_run_requires_configured_alias_model(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             cwd = Path(tmp)
@@ -632,6 +679,34 @@ test = "python --version"
             report = (cwd / ".aiflow" / "verify.md").read_text(encoding="utf-8")
             self.assertIn("python -m unittest discover -s tests", report)
 
+    def test_verify_auto_detects_node_scripts_and_compileall(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            cwd = Path(tmp)
+            (cwd / "src").mkdir()
+            (cwd / "src" / "demo.py").write_text("value = 1\n", encoding="utf-8")
+            (cwd / "package.json").write_text(
+                json.dumps(
+                    {
+                        "scripts": {
+                            "lint": "eslint .",
+                            "typecheck": "tsc --noEmit",
+                            "check": "node --check index.js",
+                            "build": "vite build",
+                        }
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            result = run_aiflow(cwd, "verify", "--auto", "--dry-run")
+            self.assertEqual(result.returncode, 0, result.stderr)
+            report = (cwd / ".aiflow" / "verify.md").read_text(encoding="utf-8")
+            node_runner = "npm.cmd" if os.name == "nt" else "npm"
+            self.assertIn(f"lint: `{node_runner} run lint`", report)
+            self.assertIn(f"typecheck: `{node_runner} run typecheck`", report)
+            self.assertIn(f"test: `{node_runner} run check`", report)
+            self.assertIn(f"build: `python -m compileall src && {node_runner} run build`", report)
+
     def test_codex_user_install_requires_explicit_global_flags(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             cwd = Path(tmp)
@@ -668,6 +743,46 @@ test = "python --version"
             self.assertEqual(tables.returncode, 0, tables.stderr)
             self.assertIn("sqlite tables: 1", tables.stdout)
             self.assertIn("demo_item", tables.stdout)
+
+    def test_db_query_runs_sqlite_select_and_writes(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            cwd = Path(tmp)
+            add = run_aiflow(cwd, "db", "add", "local", "--type", "sqlite", "--path", "data/local.db")
+            self.assertEqual(add.returncode, 0, add.stderr)
+
+            create = run_aiflow(cwd, "db", "query", "local", "create table demo_item (id integer primary key, name text)")
+            self.assertEqual(create.returncode, 0, create.stderr)
+            self.assertIn("sqlite query affected:", create.stdout)
+
+            insert = run_aiflow(cwd, "db", "query", "local", "insert into demo_item (name) values ('alpha'), ('beta')")
+            self.assertEqual(insert.returncode, 0, insert.stderr)
+            self.assertIn("sqlite query affected: 2", insert.stdout)
+
+            select = run_aiflow(cwd, "db", "query", "local", "select id, name from demo_item order by id")
+            self.assertEqual(select.returncode, 0, select.stderr)
+            self.assertIn("sqlite query rows: 2", select.stdout)
+            self.assertIn("id\tname", select.stdout)
+            self.assertIn("1\talpha", select.stdout)
+            self.assertIn("2\tbeta", select.stdout)
+
+            limited = run_aiflow(cwd, "db", "query", "local", "select id, name from demo_item order by id", "--limit", "1")
+            self.assertEqual(limited.returncode, 0, limited.stderr)
+            self.assertIn("sqlite query rows: 1", limited.stdout)
+            self.assertIn("1\talpha", limited.stdout)
+            self.assertNotIn("2\tbeta", limited.stdout)
+
+            json_result = run_aiflow(
+                cwd,
+                "db",
+                "query",
+                "local",
+                "select id, name from demo_item order by id",
+                "--format",
+                "json",
+            )
+            self.assertEqual(json_result.returncode, 0, json_result.stderr)
+            rows = json.loads(json_result.stdout)
+            self.assertEqual(rows, [{"id": 1, "name": "alpha"}, {"id": 2, "name": "beta"}])
 
     def test_db_add_supports_sqlserver_driver_metadata(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

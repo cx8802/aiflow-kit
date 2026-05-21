@@ -2,11 +2,8 @@
   "manifest_version": 3,
   "name": "AIFlow 浏览器助手",
   "version": "0.1.0",
-  "description": "连接本地 aiflow 项目后台，采集页面上下文并选择页面元素。",
+  "description": "打开独立配置页，并在 DevTools 面板读取当前选中的页面元素交给本地 aiflow 后端。",
   "permissions": [
-    "activeTab",
-    "scripting",
-    "sidePanel",
     "storage"
   ],
   "host_permissions": [
@@ -17,9 +14,8 @@
     "service_worker": "background.js"
   },
   "action": {
-    "default_title": "打开 AIFlow 浏览器助手"
+    "default_title": "打开 AIFlow 配置页"
   },
-  "side_panel": {
-    "default_path": "sidepanel.html"
-  }
+  "options_page": "settings.html",
+  "devtools_page": "devtools.html"
 }
