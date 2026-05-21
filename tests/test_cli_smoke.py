@@ -227,8 +227,12 @@ class CliSmokeTests(unittest.TestCase):
             with zipfile.ZipFile(package) as archive:
                 names = set(archive.namelist())
             self.assertIn("manifest.json", names)
+            self.assertIn("settings.html", names)
+            self.assertIn("devtools.html", names)
+            self.assertIn("devtools-panel.html", names)
             self.assertIn("adapters/index.json", names)
             self.assertIn("adapters/generic-page.json", names)
+            self.assertNotIn("sidepanel.html", names)
 
     def test_browser_capture_writes_project_markdown(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -263,6 +267,8 @@ class CliSmokeTests(unittest.TestCase):
                 "browser",
                 "automate",
                 "--step",
+                "open;;https://example.test/search",
+                "--step",
                 "fill;;#search;;aiflow",
                 "--step",
                 "click;;button[type=submit]",
@@ -278,8 +284,9 @@ class CliSmokeTests(unittest.TestCase):
             self.assertEqual(len(jobs), 1)
             payload = json.loads(jobs[0].read_text(encoding="utf-8"))
             self.assertEqual(payload["note"], "search docs")
-            self.assertEqual([step["action"] for step in payload["steps"]], ["fill", "click", "wait", "extract"])
-            self.assertEqual(payload["steps"][2]["value"], "1000")
+            self.assertEqual([step["action"] for step in payload["steps"]], ["open", "fill", "click", "wait", "extract"])
+            self.assertEqual(payload["steps"][0]["value"], "https://example.test/search")
+            self.assertEqual(payload["steps"][3]["value"], "1000")
 
     def test_browser_bridge_requires_token_and_writes_capture(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -372,6 +379,71 @@ class CliSmokeTests(unittest.TestCase):
                 self.assertEqual(element["selector"], "main > button:nth-of-type(1)")
                 self.assertEqual(element["text"], "Submit")
                 self.assertEqual(element["attributes"]["data-testid"], "submit")
+            finally:
+                server.shutdown()
+                server.server_close()
+                worker.join(timeout=5)
+
+    def test_browser_bridge_writes_page_and_request_captures(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            cwd = Path(tmp)
+            config = browser_config(cwd)
+            server = BrowserBridgeServer(cwd, "127.0.0.1", 0, config, "test-token")
+            worker = threading.Thread(target=server.serve_forever, daemon=True)
+            worker.start()
+            try:
+                page_request = urllib.request.Request(
+                    f"http://127.0.0.1:{server.server_port}/pages",
+                    data=json.dumps(
+                        {
+                            "url": "https://example.test/app?access_token=secret&view=list",
+                            "title": "App",
+                            "html": "<html><body>App</body></html>",
+                            "text": "App",
+                        }
+                    ).encode("utf-8"),
+                    headers={"Content-Type": "application/json", "X-Aiflow-Token": "test-token"},
+                    method="POST",
+                )
+                with urllib.request.urlopen(page_request, timeout=5) as response:
+                    page_payload = json.loads(response.read().decode("utf-8"))
+                self.assertIn(".aiflow", page_payload["page"])
+
+                requests_request = urllib.request.Request(
+                    f"http://127.0.0.1:{server.server_port}/requests",
+                    data=json.dumps(
+                        {
+                            "url": "https://example.test/app",
+                            "title": "App",
+                            "entries": [
+                                {
+                                    "url": "https://api.example.test/items?token=secret&id=1",
+                                    "method": "GET",
+                                    "status": 200,
+                                    "statusText": "OK",
+                                    "mimeType": "application/json",
+                                    "resourceType": "xhr",
+                                    "time": 42.5,
+                                }
+                            ],
+                        }
+                    ).encode("utf-8"),
+                    headers={"Content-Type": "application/json", "X-Aiflow-Token": "test-token"},
+                    method="POST",
+                )
+                with urllib.request.urlopen(requests_request, timeout=5) as response:
+                    requests_payload = json.loads(response.read().decode("utf-8"))
+                self.assertIn(".aiflow", requests_payload["requests"])
+
+                pages = sorted((cwd / ".aiflow" / "browser" / "pages").glob("*.json"))
+                requests = sorted((cwd / ".aiflow" / "browser" / "requests").glob("*.json"))
+                self.assertEqual(len(pages), 1)
+                self.assertEqual(len(requests), 1)
+                page = json.loads(pages[0].read_text(encoding="utf-8"))
+                request_capture = json.loads(requests[0].read_text(encoding="utf-8"))
+                self.assertIn("access_token=%5BREDACTED%5D", page["url"])
+                self.assertIn("token=%5BREDACTED%5D", request_capture["entries"][0]["url"])
+                self.assertNotIn("headers", request_capture["entries"][0])
             finally:
                 server.shutdown()
                 server.server_close()

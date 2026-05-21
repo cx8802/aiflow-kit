@@ -73,9 +73,11 @@ host = "127.0.0.1"
 port = 8765
 capture_dir = ".aiflow/browser/captures"
 elements_dir = ".aiflow/browser/elements"
+pages_dir = ".aiflow/browser/pages"
+requests_dir = ".aiflow/browser/requests"
 actions_dir = ".aiflow/browser/actions"
 token_file = ".aiflow/browser/token"
-max_payload_bytes = 200000
+max_payload_bytes = 1000000
 
 [review]
 require_tests = true

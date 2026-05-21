@@ -11,8 +11,8 @@ Add a backend-driven browser automation path to the Chrome/Edge extension.
 
 ## Steps
 
-1. Add a configuration-page automation action and result area.
-2. Implement a settings-page automation runner using `chrome.tabs` and `chrome.scripting`.
-3. Expose the shared in-page adapter to injected scripts.
-4. Update extension documentation for the new trigger path.
-5. Run extension checks and project verification.
+1. Done: Add a configuration-page automation action and result area.
+2. Done: Implement a settings-page automation runner using `chrome.tabs` and `chrome.scripting`.
+3. Done: Expose the shared in-page adapter to injected scripts.
+4. Done: Update extension documentation for the new trigger path.
+5. Done: Run extension checks and project verification.

@@ -60,3 +60,5 @@ async function runAdapterActionInPage(action, selector, value) {
 
   throw new Error(`不支持的适配器动作：${action}`);
 }
+
+globalThis.runAdapterActionInPage = runAdapterActionInPage;

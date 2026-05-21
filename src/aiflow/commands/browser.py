@@ -12,7 +12,9 @@ from ..core.browser import (
     display_path,
     elements_dir,
     ensure_browser_token,
+    pages_dir,
     read_browser_token,
+    requests_dir,
     token_path,
     write_automation_job,
     write_capture,
@@ -58,7 +60,7 @@ def configure_browser_parser(sub) -> None:
         "--step",
         action="append",
         required=True,
-        help="Step as action;;selector;;value. Supported actions: extract, click, fill, wait.",
+        help="Step as action;;selector;;value. Supported actions: open, extract, click, fill, wait.",
     )
     automate.add_argument("--note", default="", help="Optional job note")
     automate.set_defaults(func=run_browser)
@@ -97,6 +99,8 @@ def browser_doctor(args: Namespace) -> int:
         ("extension", "ok" if extension_root.exists() else "missing", str(extension_root)),
         ("capture dir", "ok", display_path(root, capture_dir(root, config))),
         ("elements dir", "ok", display_path(root, elements_dir(root, config))),
+        ("pages dir", "ok", display_path(root, pages_dir(root, config))),
+        ("requests dir", "ok", display_path(root, requests_dir(root, config))),
         ("actions dir", "ok", display_path(root, actions_dir(root, config))),
         ("token", "ok" if token else "missing", display_path(root, token_path(root, config))),
     ]
@@ -141,6 +145,8 @@ def browser_serve(args: Namespace) -> int:
     print(f"browser bridge: http://{host}:{server.server_port}")
     print(f"capture dir: {display_path(root, capture_dir(root, config))}")
     print(f"elements dir: {display_path(root, elements_dir(root, config))}")
+    print(f"pages dir: {display_path(root, pages_dir(root, config))}")
+    print(f"requests dir: {display_path(root, requests_dir(root, config))}")
     print(f"extension dir: {browser_extension_root()}")
     print(f"project token: {token}")
     print("Press Ctrl+C to stop.")

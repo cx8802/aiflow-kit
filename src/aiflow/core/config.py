@@ -53,9 +53,11 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "port": 8765,
         "capture_dir": ".aiflow/browser/captures",
         "elements_dir": ".aiflow/browser/elements",
+        "pages_dir": ".aiflow/browser/pages",
+        "requests_dir": ".aiflow/browser/requests",
         "actions_dir": ".aiflow/browser/actions",
         "token_file": ".aiflow/browser/token",
-        "max_payload_bytes": 200_000,
+        "max_payload_bytes": 1_000_000,
     },
     "review": {
         "require_tests": True,
@@ -229,6 +231,8 @@ def validate_config(config: dict[str, Any]) -> list[str]:
         require_int(browser, "port", "browser.port", errors)
         require_str(browser, "capture_dir", "browser.capture_dir", errors)
         require_str(browser, "elements_dir", "browser.elements_dir", errors)
+        require_str(browser, "pages_dir", "browser.pages_dir", errors)
+        require_str(browser, "requests_dir", "browser.requests_dir", errors)
         require_str(browser, "actions_dir", "browser.actions_dir", errors)
         require_str(browser, "token_file", "browser.token_file", errors)
         require_int(browser, "max_payload_bytes", "browser.max_payload_bytes", errors)

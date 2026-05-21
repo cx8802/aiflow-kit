@@ -29,13 +29,23 @@ aiflow browser serve
 
 元素读取基于 DevTools 当前 `$0` 元素。扩展不会读取 cookie、localStorage、sessionStorage 或请求头；`password` 和 `hidden` 输入框的值不会写回。
 
+DevTools 面板还提供：
+
+- `发送页面代码`：写入 `.aiflow/browser/pages/`
+- `发送请求摘要`：写入 `.aiflow/browser/requests/`
+- `执行后端下一条任务`：读取并执行当前项目的 automation queue
+
+配置页也提供 `执行后端下一条任务`。这个按钮不会让用户手工输入 URL，而是读取 bridge 中已经排队的任务；遇到 `open` 步骤时，扩展会用浏览器标签页打开后端提供的网址，再继续执行后续步骤。
+
+请求摘要只保留 method、脱敏 URL、status、MIME、resource type 和耗时，不写 headers、cookies、请求体或响应体。
+
 ## 后台自动化
 
 自动化任务由项目后台排队控制：
 
 ```bat
-aiflow browser automate --step "fill;;#search;;aiflow" --step "click;;button[type=submit]" --step "wait;;;;1000" --step "extract;;main"
+aiflow browser automate --step "open;;https://example.com" --step "fill;;#search;;aiflow" --step "click;;button[type=submit]" --step "wait;;;;1000" --step "extract;;main"
 aiflow browser serve
 ```
 
-扩展页面不提供队列执行器或 adapter 表单。插件只负责配置连接，以及在 DevTools 面板读取当前选中的页面元素；任务来源、动作决策和结果落盘都在项目后台。
+扩展配置页只负责连接 bridge 和触发队列任务。打开网站、点击、填表、等待和提取内容都应该由项目后台排队，再通过配置页或 DevTools 面板的 `执行后端下一条任务` 执行。

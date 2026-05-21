@@ -6,7 +6,7 @@ from datetime import datetime
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 from typing import Any
 
 from .config import load_config
@@ -14,8 +14,9 @@ from .markdown import now_stamp
 
 
 CAPTURE_TYPES = {"page", "selection"}
-AUTOMATION_ACTIONS = {"extract", "click", "fill", "wait"}
+AUTOMATION_ACTIONS = {"extract", "click", "fill", "wait", "open"}
 EXTENSION_ORIGIN_PREFIXES = ("chrome-extension://", "edge-extension://")
+SENSITIVE_QUERY_KEYS = {"token", "access_token", "auth", "authorization", "key", "api_key", "secret", "password", "session", "jwt"}
 
 
 class CaptureError(ValueError):
@@ -39,6 +40,16 @@ def capture_dir(root: Path, config: dict[str, Any] | None = None) -> Path:
 def elements_dir(root: Path, config: dict[str, Any] | None = None) -> Path:
     current = config or browser_config(root)
     return resolve_project_path(root, str(current.get("elements_dir", ".aiflow/browser/elements")))
+
+
+def pages_dir(root: Path, config: dict[str, Any] | None = None) -> Path:
+    current = config or browser_config(root)
+    return resolve_project_path(root, str(current.get("pages_dir", ".aiflow/browser/pages")))
+
+
+def requests_dir(root: Path, config: dict[str, Any] | None = None) -> Path:
+    current = config or browser_config(root)
+    return resolve_project_path(root, str(current.get("requests_dir", ".aiflow/browser/requests")))
 
 
 def actions_dir(root: Path, config: dict[str, Any] | None = None) -> Path:
@@ -96,6 +107,26 @@ def write_element_capture(root: Path, payload: dict[str, Any], config: dict[str,
     output_dir.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now().astimezone().strftime("%Y%m%d-%H%M%S")
     path = unique_json_path(output_dir, stamp, "element")
+    write_json_file(path, normalized)
+    return path
+
+
+def write_page_snapshot(root: Path, payload: dict[str, Any], config: dict[str, Any] | None = None) -> Path:
+    normalized = normalize_page_snapshot(payload)
+    output_dir = pages_dir(root, config)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    stamp = datetime.now().astimezone().strftime("%Y%m%d-%H%M%S")
+    path = unique_json_path(output_dir, stamp, "page")
+    write_json_file(path, normalized)
+    return path
+
+
+def write_request_capture(root: Path, payload: dict[str, Any], config: dict[str, Any] | None = None) -> Path:
+    normalized = normalize_request_capture(payload)
+    output_dir = requests_dir(root, config)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    stamp = datetime.now().astimezone().strftime("%Y%m%d-%H%M%S")
+    path = unique_json_path(output_dir, stamp, "requests")
     write_json_file(path, normalized)
     return path
 
@@ -185,6 +216,12 @@ def normalize_automation_steps(steps: list[dict[str, str]]) -> list[dict[str, st
         value = clean_text(step.get("value", ""), max_chars=20_000)
         if action in {"click", "fill"} and not selector:
             raise CaptureError(f"automation action {action} requires a selector")
+        if action == "open":
+            target_url = value or selector
+            if not is_allowed_browser_url(target_url):
+                raise CaptureError("open step requires an http or https URL")
+            selector = ""
+            value = target_url
         if action == "wait":
             try:
                 delay = int(value or selector or "1000")
@@ -196,6 +233,11 @@ def normalize_automation_steps(steps: list[dict[str, str]]) -> list[dict[str, st
             selector = ""
         normalized.append({"action": action, "selector": selector, "value": value})
     return normalized
+
+
+def is_allowed_browser_url(value: str) -> bool:
+    parsed = urlparse(value)
+    return parsed.scheme in {"http", "https"} and bool(parsed.netloc)
 
 
 def normalize_capture(payload: dict[str, Any]) -> dict[str, str]:
@@ -249,6 +291,92 @@ def normalize_element_capture(payload: dict[str, Any]) -> dict[str, Any]:
         "attributes": attributes,
         "rect": normalize_rect(payload.get("rect", {})),
     }
+
+
+def normalize_page_snapshot(payload: dict[str, Any]) -> dict[str, Any]:
+    if not isinstance(payload, dict):
+        raise CaptureError("page payload must be an object")
+    url = clean_text(payload.get("url", ""), max_chars=2_048)
+    title = clean_text(payload.get("title", ""), max_chars=500)
+    html = clean_text(payload.get("html", ""), max_chars=500_000)
+    text = clean_text(payload.get("text", ""), max_chars=120_000)
+    if not any([url, title, html, text]):
+        raise CaptureError("page payload is empty")
+    return {
+        "captured_at": now_stamp(),
+        "url": redact_url(url),
+        "title": title,
+        "html": html,
+        "text": text,
+    }
+
+
+def normalize_request_capture(payload: dict[str, Any]) -> dict[str, Any]:
+    if not isinstance(payload, dict):
+        raise CaptureError("request payload must be an object")
+    entries = payload.get("entries", [])
+    if not isinstance(entries, list):
+        raise CaptureError("request entries must be a list")
+    normalized_entries = [normalize_request_entry(entry) for entry in entries[:500]]
+    return {
+        "captured_at": now_stamp(),
+        "url": redact_url(clean_text(payload.get("url", ""), max_chars=2_048)),
+        "title": clean_text(payload.get("title", ""), max_chars=500),
+        "entries": normalized_entries,
+    }
+
+
+def normalize_request_entry(entry: Any) -> dict[str, Any]:
+    if not isinstance(entry, dict):
+        raise CaptureError("request entries must be objects")
+    return {
+        "url": redact_url(clean_text(entry.get("url", ""), max_chars=4_096)),
+        "method": clean_text(entry.get("method", ""), max_chars=20).upper(),
+        "status": clean_int(entry.get("status"), default=0, minimum=0, maximum=999),
+        "statusText": clean_text(entry.get("statusText", ""), max_chars=200),
+        "mimeType": clean_text(entry.get("mimeType", ""), max_chars=200),
+        "resourceType": clean_text(entry.get("resourceType", ""), max_chars=80),
+        "startedDateTime": clean_text(entry.get("startedDateTime", ""), max_chars=80),
+        "time": clean_number(entry.get("time"), default=0, minimum=0, maximum=3_600_000),
+    }
+
+
+def redact_url(value: str) -> str:
+    if not value:
+        return ""
+    parsed = urlparse(value)
+    query = []
+    for key, item in parse_qsl(parsed.query, keep_blank_values=True):
+        lowered = key.lower()
+        if any(secret in lowered for secret in SENSITIVE_QUERY_KEYS):
+            query.append((key, "[REDACTED]"))
+        else:
+            query.append((key, item[:500]))
+    return urlunparse(parsed._replace(query=urlencode(query, doseq=True)))
+
+
+def clean_int(value: Any, *, default: int, minimum: int, maximum: int) -> int:
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        raise CaptureError("integer fields must be numbers")
+    try:
+        number = int(value)
+    except (TypeError, ValueError) as exc:
+        raise CaptureError("integer fields must be numbers") from exc
+    return max(minimum, min(maximum, number))
+
+
+def clean_number(value: Any, *, default: float, minimum: float, maximum: float) -> float:
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        raise CaptureError("number fields must be numbers")
+    try:
+        number = float(value)
+    except (TypeError, ValueError) as exc:
+        raise CaptureError("number fields must be numbers") from exc
+    return max(minimum, min(maximum, number))
 
 
 def normalize_scalar_map(value: Any, *, max_items: int, max_chars: int) -> dict[str, str]:
@@ -388,6 +516,8 @@ class BrowserBridgeHandler(BaseHTTPRequestHandler):
                     "project": self.server.root.name,
                     "captureDir": display_path(self.server.root, capture_dir(self.server.root, self.server.config)),
                     "elementsDir": display_path(self.server.root, elements_dir(self.server.root, self.server.config)),
+                    "pagesDir": display_path(self.server.root, pages_dir(self.server.root, self.server.config)),
+                    "requestsDir": display_path(self.server.root, requests_dir(self.server.root, self.server.config)),
                     "actionsDir": display_path(self.server.root, actions_dir(self.server.root, self.server.config)),
                 },
             )
@@ -431,6 +561,30 @@ class BrowserBridgeHandler(BaseHTTPRequestHandler):
                 return
             self.write_json(HTTPStatus.CREATED, {"element": display_path(self.server.root, path)})
             return
+        if parsed.path == "/pages":
+            try:
+                payload = self.read_payload()
+                path = write_page_snapshot(self.server.root, payload, self.server.config)
+            except CaptureError as exc:
+                self.write_error(HTTPStatus.BAD_REQUEST, str(exc))
+                return
+            except json.JSONDecodeError:
+                self.write_error(HTTPStatus.BAD_REQUEST, "invalid JSON payload")
+                return
+            self.write_json(HTTPStatus.CREATED, {"page": display_path(self.server.root, path)})
+            return
+        if parsed.path == "/requests":
+            try:
+                payload = self.read_payload()
+                path = write_request_capture(self.server.root, payload, self.server.config)
+            except CaptureError as exc:
+                self.write_error(HTTPStatus.BAD_REQUEST, str(exc))
+                return
+            except json.JSONDecodeError:
+                self.write_error(HTTPStatus.BAD_REQUEST, "invalid JSON payload")
+                return
+            self.write_json(HTTPStatus.CREATED, {"requests": display_path(self.server.root, path)})
+            return
         if parsed.path.startswith("/automation/") and parsed.path.endswith("/result"):
             parts = parsed.path.strip("/").split("/")
             if len(parts) != 3:
@@ -451,7 +605,7 @@ class BrowserBridgeHandler(BaseHTTPRequestHandler):
 
     def do_OPTIONS(self) -> None:  # noqa: N802
         parsed = urlparse(self.path)
-        if parsed.path not in {"/health", "/captures", "/elements", "/automation/next"} and not (
+        if parsed.path not in {"/health", "/captures", "/elements", "/pages", "/requests", "/automation/next"} and not (
             parsed.path.startswith("/automation/") and parsed.path.endswith("/result")
         ):
             self.write_error(HTTPStatus.NOT_FOUND, "not found")

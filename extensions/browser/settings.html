@@ -29,6 +29,20 @@
         </div>
       </section>
 
+      <section class="panel automation-panel">
+        <div class="section-head">
+          <div>
+            <h2>后台自动化</h2>
+            <p>从本地项目后台读取下一条任务；打开网页、点击、填表和提取内容都由后端队列决定。</p>
+          </div>
+        </div>
+        <button id="run-automation" class="primary large-action" type="button">执行后端下一条任务</button>
+        <label class="field result-field">
+          <span>最近结果</span>
+          <textarea id="automation-result" rows="10" readonly></textarea>
+        </label>
+      </section>
+
       <section class="status-strip" aria-live="polite">
         <span id="status-dot" class="status-dot"></span>
         <p id="status-text">尚未连接桥接服务。</p>

@@ -37,8 +37,13 @@
           </div>
         </div>
         <button id="pick-element" class="primary large-action" type="button">发送当前选中元素</button>
+        <div class="button-row">
+          <button id="capture-page" type="button">发送页面代码</button>
+          <button id="capture-network" type="button">发送请求摘要</button>
+        </div>
+        <button id="run-automation" type="button">执行后端下一条任务</button>
         <label class="field result-field">
-          <span>最近选中</span>
+          <span>最近结果</span>
           <textarea id="element-result" rows="8" readonly></textarea>
         </label>
       </section>
