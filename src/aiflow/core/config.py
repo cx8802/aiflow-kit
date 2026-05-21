@@ -21,8 +21,6 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "claude_agent": {
         "enabled": False,
         "runtime": "node",
-        "package_dir": ".tools/claude-agent",
-        "runner": "node/claude-agent-runner/runner.mjs",
         "default_model": "small",
         "small_model": "",
         "standard_model": "",
@@ -180,8 +178,6 @@ def validate_config(config: dict[str, Any]) -> list[str]:
         require_bool(claude_agent, "enabled", "claude_agent.enabled", errors)
         for key in [
             "runtime",
-            "package_dir",
-            "runner",
             "default_model",
             "small_model",
             "standard_model",

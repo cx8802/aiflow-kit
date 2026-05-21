@@ -89,8 +89,6 @@ npm install --prefix .tools\claude-agent @anthropic-ai/claude-agent-sdk
 [claude_agent]
 enabled = false
 runtime = "node"
-package_dir = ".tools/claude-agent"
-runner = "node/claude-agent-runner/runner.mjs"
 
 # 不硬编码具体模型。这里配置别名，实际模型名由项目或用户指定。
 default_model = "small"
@@ -121,6 +119,8 @@ runs_dir = ".aiflow/claude-agent/runs"
 sessions_dir = ".aiflow/claude-agent/sessions"
 usage_file = ".aiflow/claude-agent/usage.jsonl"
 ```
+
+`package_dir` 和 runner 路径由 `aiflow-kit` 自己管理，不进入目标项目配置。目标项目配置只声明是否启用、模型/provider、网络、权限、预算和输出位置。
 
 ### 模型档位
 

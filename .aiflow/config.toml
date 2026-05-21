@@ -41,8 +41,6 @@ max_compact_entries = 30
 [claude_agent]
 enabled = true
 runtime = "node"
-package_dir = ".tools/claude-agent"
-runner = "node/claude-agent-runner/runner.mjs"
 default_model = "small"
 small_model = "MiniMax-M2.7"
 standard_model = "MiniMax-M2.7"
