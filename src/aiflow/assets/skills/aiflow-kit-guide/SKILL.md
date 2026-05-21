@@ -1,6 +1,6 @@
 ---
 name: aiflow-kit-guide
-description: Use when the user asks about "aiflow", "aiflow-kit", this AI coding workflow kit, how to use the local aiflow CLI, how Codex or Claude Code should discover aiflow skills, or how this project differs from Apache Airflow.
+description: Use when the user asks about "aiflow", "aiflow-kit", "AIFlow 是什么", "你知道 aiflow 吗", "aiflow 怎么用", this AI coding workflow kit, how to use the local aiflow CLI, how Codex or Claude Code should discover aiflow skills, or how this project differs from Apache Airflow.
 ---
 
 # AIFlow Kit Guide

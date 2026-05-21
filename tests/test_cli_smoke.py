@@ -1,11 +1,17 @@
 from __future__ import annotations
 
+import json
 import os
+import shutil
 import sqlite3
 import subprocess
 import sys
 import tempfile
+import threading
 import unittest
+import urllib.error
+import urllib.request
+import zipfile
 from pathlib import Path
 
 
@@ -14,6 +20,7 @@ SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
+from aiflow.core.browser import BrowserBridgeServer, browser_config
 from aiflow.core.claude_agent import command_env
 
 
@@ -199,6 +206,211 @@ class CliSmokeTests(unittest.TestCase):
             self.assertIn(".tools/", gitignore)
             self.assertIn(".cache/", gitignore)
 
+    def test_browser_extension_dir_points_to_bundled_manifest(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            cwd = Path(tmp)
+            result = run_aiflow(cwd, "browser", "extension-dir")
+            self.assertEqual(result.returncode, 0, result.stderr)
+            extension_dir = Path(result.stdout.strip())
+            self.assertTrue((extension_dir / "manifest.json").exists())
+            self.assertTrue((extension_dir / "adapters" / "index.json").exists())
+
+    def test_browser_pack_writes_extension_zip_with_adapters(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            cwd = Path(tmp)
+            result = run_aiflow(cwd, "browser", "pack")
+            self.assertEqual(result.returncode, 0, result.stderr)
+            package = cwd / ".aiflow" / "dist" / "aiflow-browser-extension.zip"
+            self.assertTrue(package.exists())
+            with zipfile.ZipFile(package) as archive:
+                names = set(archive.namelist())
+            self.assertIn("manifest.json", names)
+            self.assertIn("adapters/index.json", names)
+            self.assertIn("adapters/generic-page.json", names)
+
+    def test_browser_capture_writes_project_markdown(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            cwd = Path(tmp)
+            result = run_aiflow(
+                cwd,
+                "browser",
+                "capture",
+                "--url",
+                "https://example.test/docs",
+                "--title",
+                "Docs",
+                "--selection",
+                "selected text",
+                "--note",
+                "implementation context",
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            captures = sorted((cwd / ".aiflow" / "browser" / "captures").glob("*.md"))
+            self.assertEqual(len(captures), 1)
+            content = captures[0].read_text(encoding="utf-8")
+            self.assertIn("# Browser Capture", content)
+            self.assertIn("https://example.test/docs", content)
+            self.assertIn("selected text", content)
+            self.assertIn("implementation context", content)
+
+    def test_browser_automate_queues_pending_job(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            cwd = Path(tmp)
+            result = run_aiflow(
+                cwd,
+                "browser",
+                "automate",
+                "--step",
+                "fill;;#search;;aiflow",
+                "--step",
+                "click;;button[type=submit]",
+                "--step",
+                "wait;;;;1000",
+                "--step",
+                "extract;;main",
+                "--note",
+                "search docs",
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            jobs = sorted((cwd / ".aiflow" / "browser" / "actions" / "pending").glob("*.json"))
+            self.assertEqual(len(jobs), 1)
+            payload = json.loads(jobs[0].read_text(encoding="utf-8"))
+            self.assertEqual(payload["note"], "search docs")
+            self.assertEqual([step["action"] for step in payload["steps"]], ["fill", "click", "wait", "extract"])
+            self.assertEqual(payload["steps"][2]["value"], "1000")
+
+    def test_browser_bridge_requires_token_and_writes_capture(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            cwd = Path(tmp)
+            config = browser_config(cwd)
+            server = BrowserBridgeServer(cwd, "127.0.0.1", 0, config, "test-token")
+            worker = threading.Thread(target=server.serve_forever, daemon=True)
+            worker.start()
+            url = f"http://127.0.0.1:{server.server_port}/captures"
+            body = json.dumps(
+                {
+                    "type": "selection",
+                    "url": "https://example.test/source",
+                    "title": "Source",
+                    "selection": "bridge selection",
+                    "note": "bridge note",
+                }
+            ).encode("utf-8")
+            try:
+                unauthorized = urllib.request.Request(
+                    url,
+                    data=body,
+                    headers={"Content-Type": "application/json"},
+                    method="POST",
+                )
+                with self.assertRaises(urllib.error.HTTPError) as error:
+                    urllib.request.urlopen(unauthorized, timeout=5)
+                self.assertEqual(error.exception.code, 401)
+
+                authorized = urllib.request.Request(
+                    url,
+                    data=body,
+                    headers={"Content-Type": "application/json", "X-Aiflow-Token": "test-token"},
+                    method="POST",
+                )
+                with urllib.request.urlopen(authorized, timeout=5) as response:
+                    payload = json.loads(response.read().decode("utf-8"))
+                self.assertIn(".aiflow", payload["capture"])
+                captures = sorted((cwd / ".aiflow" / "browser" / "captures").glob("*.md"))
+                self.assertEqual(len(captures), 1)
+            finally:
+                server.shutdown()
+                server.server_close()
+                worker.join(timeout=5)
+
+    def test_browser_bridge_writes_selected_element(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            cwd = Path(tmp)
+            config = browser_config(cwd)
+            server = BrowserBridgeServer(cwd, "127.0.0.1", 0, config, "test-token")
+            worker = threading.Thread(target=server.serve_forever, daemon=True)
+            worker.start()
+            url = f"http://127.0.0.1:{server.server_port}/elements"
+            body = json.dumps(
+                {
+                    "url": "https://example.test/source",
+                    "title": "Source",
+                    "selector": "main > button:nth-of-type(1)",
+                    "tagName": "button",
+                    "id": "submit",
+                    "className": "primary",
+                    "text": "Submit",
+                    "attributes": {"type": "button", "data-testid": "submit"},
+                    "rect": {"x": 10, "y": 20, "width": 100, "height": 30},
+                }
+            ).encode("utf-8")
+            try:
+                unauthorized = urllib.request.Request(
+                    url,
+                    data=body,
+                    headers={"Content-Type": "application/json"},
+                    method="POST",
+                )
+                with self.assertRaises(urllib.error.HTTPError) as error:
+                    urllib.request.urlopen(unauthorized, timeout=5)
+                self.assertEqual(error.exception.code, 401)
+
+                authorized = urllib.request.Request(
+                    url,
+                    data=body,
+                    headers={"Content-Type": "application/json", "X-Aiflow-Token": "test-token"},
+                    method="POST",
+                )
+                with urllib.request.urlopen(authorized, timeout=5) as response:
+                    payload = json.loads(response.read().decode("utf-8"))
+                self.assertIn(".aiflow", payload["element"])
+                elements = sorted((cwd / ".aiflow" / "browser" / "elements").glob("*.json"))
+                self.assertEqual(len(elements), 1)
+                element = json.loads(elements[0].read_text(encoding="utf-8"))
+                self.assertEqual(element["selector"], "main > button:nth-of-type(1)")
+                self.assertEqual(element["text"], "Submit")
+                self.assertEqual(element["attributes"]["data-testid"], "submit")
+            finally:
+                server.shutdown()
+                server.server_close()
+                worker.join(timeout=5)
+
+    def test_browser_bridge_serves_and_completes_automation_job(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            cwd = Path(tmp)
+            enqueue = run_aiflow(cwd, "browser", "automate", "--step", "extract;;main")
+            self.assertEqual(enqueue.returncode, 0, enqueue.stderr)
+            config = browser_config(cwd)
+            server = BrowserBridgeServer(cwd, "127.0.0.1", 0, config, "test-token")
+            worker = threading.Thread(target=server.serve_forever, daemon=True)
+            worker.start()
+            try:
+                next_request = urllib.request.Request(
+                    f"http://127.0.0.1:{server.server_port}/automation/next",
+                    headers={"X-Aiflow-Token": "test-token"},
+                    method="GET",
+                )
+                with urllib.request.urlopen(next_request, timeout=5) as response:
+                    payload = json.loads(response.read().decode("utf-8"))
+                self.assertIsNotNone(payload["job"])
+                job_id = payload["job"]["id"]
+
+                result_request = urllib.request.Request(
+                    f"http://127.0.0.1:{server.server_port}/automation/{job_id}/result",
+                    data=json.dumps({"status": "completed", "results": [{"text": "done"}]}).encode("utf-8"),
+                    headers={"Content-Type": "application/json", "X-Aiflow-Token": "test-token"},
+                    method="POST",
+                )
+                with urllib.request.urlopen(result_request, timeout=5) as response:
+                    result_payload = json.loads(response.read().decode("utf-8"))
+                self.assertIn("completed", result_payload["result"])
+                self.assertFalse((cwd / ".aiflow" / "browser" / "actions" / "pending" / f"{job_id}.json").exists())
+                self.assertTrue((cwd / ".aiflow" / "browser" / "actions" / "completed" / f"{job_id}.json").exists())
+            finally:
+                server.shutdown()
+                server.server_close()
+                worker.join(timeout=5)
+
     def test_claude_agent_install_dry_run_uses_aiflow_kit_sdk_package(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             cwd = Path(tmp)
@@ -228,6 +440,69 @@ class CliSmokeTests(unittest.TestCase):
             result = run_aiflow(cwd, "claude-agent", "run", "summarize", "--dry-run")
             self.assertEqual(result.returncode, 2)
             self.assertIn("claude_agent.small_model is empty", result.stdout)
+
+    def test_claude_agent_runner_passes_budget_to_sdk(self) -> None:
+        node = shutil.which("node.exe" if os.name == "nt" else "node") or shutil.which("node")
+        if not node:
+            self.skipTest("node is not available")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            cwd = Path(tmp)
+            package_dir = cwd / "package"
+            sdk_dir = package_dir / "node_modules" / "@anthropic-ai" / "claude-agent-sdk"
+            sdk_dir.mkdir(parents=True)
+            (package_dir / "package.json").write_text('{"private":true}\n', encoding="utf-8")
+            (sdk_dir / "package.json").write_text(
+                '{"name":"@anthropic-ai/claude-agent-sdk","type":"module","exports":"./index.mjs"}\n',
+                encoding="utf-8",
+            )
+            (sdk_dir / "index.mjs").write_text(
+                """
+export async function* query({ options }) {
+  yield {
+    type: "result",
+    result: String(options.maxBudgetUsd),
+    total_cost_usd: 0,
+    usage: {}
+  };
+}
+""".strip()
+                + "\n",
+                encoding="utf-8",
+            )
+            output_dir = cwd / "output"
+            input_file = cwd / "input.json"
+            input_file.write_text(
+                """
+{
+  "cwd": ".",
+  "task": "run",
+  "prompt": "budget probe",
+  "model": "test-model",
+  "packageDir": "PACKAGE_DIR",
+  "outputDir": "OUTPUT_DIR",
+  "contextFiles": [],
+  "allowedTools": ["Read"],
+  "disallowedTools": ["Write"],
+  "permissionMode": "dontAsk",
+  "maxTurns": 1,
+  "maxBudgetUsd": 0.2
+}
+""".strip()
+                .replace("PACKAGE_DIR", str(package_dir).replace("\\", "\\\\"))
+                .replace("OUTPUT_DIR", str(output_dir).replace("\\", "\\\\"))
+                + "\n",
+                encoding="utf-8",
+            )
+
+            result = subprocess.run(
+                [node, str(ROOT / "node" / "claude-agent-runner" / "runner.mjs"), str(input_file)],
+                cwd=cwd,
+                text=True,
+                capture_output=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual((output_dir / "result.md").read_text(encoding="utf-8"), "0.2\n")
 
     def test_claude_agent_local_env_maps_auth_token_and_base_url(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

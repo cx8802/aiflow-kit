@@ -1,4 +1,4 @@
-# aiflow-kit 文档索引
+﻿# aiflow-kit 文档索引
 
 `aiflow-kit` 的目标是把 AI 编程中的固定工作流沉淀为可复用的 Skills、插件包装、项目规则模板和轻量 CLI，让 Claude Code 与 Codex 都能稳定走完：
 
@@ -31,9 +31,10 @@
 | [17-多Agent协作流程.md](17-多Agent协作流程.md) | 说明多 Agent 角色、任务队列、项目级 handoff 和全局 Skills 边界 |
 | [18-安装路径与环境探测.md](18-安装路径与环境探测.md) | 说明如何自动探测本机 aiflow-kit 路径、生成 `.aiflow/env.local.toml` 并渲染全局 Skills |
 | [19-配置验证与Agent状态流转.md](19-配置验证与Agent状态流转.md) | 说明 `aiflow config`、`verify --auto` 和 `agents start/done/block` |
-| [20-前端设计与Playwright.md](20-前端设计与Playwright.md) | 说明 `frontend-design`、`frontend-verify`、`playwright-verify` 和项目级 Playwright 安装 |
+| [20-前端设计与Playwright.md](20-前端设计与Playwright.md) | 说明 `frontend-design`、`frontend-verify`、`playwright-verify` 和 `aiflow-kit` 共享 Playwright 运行时 |
 | [21-记忆与上下文压缩.md](21-记忆与上下文压缩.md) | 说明 `aiflow memory`、`aiflow compact`、项目级记忆和全局记忆边界 |
 | [22-Claude-Agent-SDK设计方案.md](22-Claude-Agent-SDK设计方案.md) | 说明 Node + Claude Agent SDK 集成、自定义 API/模型配置、权限和 token 节省策略 |
+| [23-浏览器伴随插件.md](23-浏览器伴随插件.md) | 说明 Chrome/Edge 浏览器伴随插件、localhost bridge、鼠标选元素和项目级网页上下文落盘 |
 
 ## 辅助安装文档
 
@@ -50,7 +51,7 @@
 第一版只交付可落地的工程骨架，不做大型平台：
 
 - 7 个核心流程 Skills：`project-analysis`、`implementation-plan`、`tdd-development`、`frontend-design`、`frontend-verify`、`playwright-verify`、`code-review-release`，3 个全局辅助 Skills：`aiflow-kit-guide`、`aiflow-kit-installer`、`aiflow-kit-updater`，以及 4 个多 Agent Skills：`multi-agent-orchestrator`、`multi-agent-explorer`、`multi-agent-worker`、`multi-agent-reviewer`。
-- 一个轻量 CLI：`aiflow init/context/compact/memory/plan/review/verify/doctor/install-skills`。
+- 一个轻量 CLI：`aiflow init/context/compact/memory/plan/review/verify/doctor/install-skills/browser`。
 - Claude Code 插件包：`.claude-plugin/plugin.json` + `skills/`。
 - Codex 插件包：`.codex-plugin/plugin.json` + `skills/`。
 - 项目规则模板：`AGENTS.md`、`CLAUDE.md`、`.aiflow/config.toml`。

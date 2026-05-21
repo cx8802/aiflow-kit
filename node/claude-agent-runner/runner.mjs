@@ -33,6 +33,7 @@ async function main() {
     cwd: input.cwd,
     model: input.model,
     maxTurns: input.maxTurns,
+    maxBudgetUsd: input.maxBudgetUsd,
     permissionMode: input.permissionMode,
     allowedTools: input.allowedTools,
     disallowedTools: input.disallowedTools
