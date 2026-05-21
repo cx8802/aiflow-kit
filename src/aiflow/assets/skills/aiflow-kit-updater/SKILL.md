@@ -10,7 +10,7 @@ description: Use when the user asks to update, refresh, reinstall, upgrade, or s
 The local `aiflow-kit` source repository is:
 
 ```text
-D:\code_work\aiflow-kit
+{{ AIFLOW_KIT_ROOT }}
 ```
 
 ## Update Global and Current Project
@@ -18,14 +18,14 @@ D:\code_work\aiflow-kit
 When the user says "update aiflow" or "update aiflow-kit" from another project, run this from the current project root:
 
 ```bat
-D:\code_work\aiflow-kit\scripts\aiflow-update.bat
+{{ AIFLOW_UPDATE_BAT }}
 ```
 
 This updates:
 
 - Codex user-level Skills in `%USERPROFILE%\.agents\skills`.
-- Claude Code plugin package in `D:\code_work\aiflow-kit\.aiflow\dist\claude`.
-- Codex plugin package in `D:\code_work\aiflow-kit\.aiflow\dist\codex`.
+- Claude Code plugin package in `{{ AIFLOW_CLAUDE_PLUGIN_DIR }}`.
+- Codex plugin package in `{{ AIFLOW_CODEX_PLUGIN_DIR }}`.
 - Current project `AGENTS.md`, `CLAUDE.md`, `.aiflow/config.toml` when missing.
 - Current project `.agents/skills`.
 - Current project `.aiflow/context.md`.

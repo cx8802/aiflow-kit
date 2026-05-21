@@ -7,7 +7,7 @@ description: Use when the user asks about "aiflow", "aiflow-kit", this AI coding
 
 ## Identity
 
-`aiflow-kit` is the local AI coding workflow kit in `D:\code_work\aiflow-kit`.
+`aiflow-kit` is the local AI coding workflow kit in `{{ AIFLOW_KIT_ROOT }}`.
 
 It is not Apache Airflow.
 
@@ -41,21 +41,21 @@ aiflow agents status
 When the command is not on PATH, use the source wrapper:
 
 ```bat
-D:\code_work\aiflow-kit\scripts\aiflow-dev.bat --help
+{{ AIFLOW_DEV_BAT }} --help
 ```
 
 To install aiflow-kit into the current project from any repository:
 
 ```bat
-D:\code_work\aiflow-kit\scripts\aiflow-dev.bat init
-D:\code_work\aiflow-kit\scripts\aiflow-dev.bat install-skills
-D:\code_work\aiflow-kit\scripts\aiflow-dev.bat context
+{{ AIFLOW_DEV_BAT }} init
+{{ AIFLOW_DEV_BAT }} install-skills
+{{ AIFLOW_DEV_BAT }} context
 ```
 
 To update both global aiflow Skills/plugins and the current project's aiflow files:
 
 ```bat
-D:\code_work\aiflow-kit\scripts\aiflow-update.bat
+{{ AIFLOW_UPDATE_BAT }}
 ```
 
 ## Discovery Model
@@ -80,7 +80,7 @@ CLAUDE.md
 Claude Code should use the generated plugin package:
 
 ```text
-D:\code_work\aiflow-kit\.aiflow\dist\claude
+{{ AIFLOW_CLAUDE_PLUGIN_DIR }}
 ```
 
 ## What To Say When Asked "Do You Know aiflow?"

@@ -1,32 +1,36 @@
-# Plan: multi-agent workflow support
+# Plan: dynamic install path and environment config
 
 ## Goal
 
-Add a lightweight multi-agent coordination layer for `aiflow-kit` so Codex and Claude Code can split larger coding work into bounded roles, project-level task files, status, and handoff notes.
+Make `aiflow-kit` portable across machines by detecting the real source path and local tool environment during install, then rendering Codex/Claude Skills with the detected path instead of hard-coded examples.
 
 ## Non-goals
 
-- Do not build a background scheduler, queue service, or cloud platform.
-- Do not store project tasks in global Codex or Claude configuration.
-- Do not require any provider-specific subagent implementation.
+- Do not write permanent user environment variables.
+- Do not commit machine-local environment files.
+- Do not require PowerShell scripts.
 
 ## Impact scope
 
-- `src/aiflow/core/agents.py`
-- `src/aiflow/commands/agents.py`
+- `src/aiflow/core/environment.py`
+- `src/aiflow/commands/env.py`
+- `src/aiflow/commands/install_skills.py`
+- `src/aiflow/commands/doctor.py`
 - `src/aiflow/cli.py`
-- `src/aiflow/assets/skills/*`
+- `scripts/quick-install.bat`
+- `scripts/aiflow-update.bat`
+- `src/aiflow/assets/skills/aiflow-kit-*`
 - `tests/test_cli_smoke.py`
-- `docs/17-多Agent协作流程.md`
+- `docs/18-安装路径与环境探测.md`
 - `docs/README.md`
 
 ## Steps
 
-1. Define `.aiflow/agents/` files: roles, tasks, status, and handoff.
-2. Add `aiflow agents init/plan/status/handoff` commands.
-3. Add global reusable Skills for orchestrator, explorer, worker, and reviewer behavior.
-4. Document global vs project-level boundaries and Codex/Claude usage.
-5. Add focused smoke tests for generated files and command output.
+1. Add environment detection that reports project root, aiflow-kit root, scripts, plugin dirs, proxy, and tool versions.
+2. Write `.aiflow/env.local.toml` as the editable machine-local config.
+3. Render bundled Skills with the detected aiflow-kit root during install.
+4. Make quick install and update scripts run environment detection first.
+5. Update docs and tests.
 
 ## Verification
 

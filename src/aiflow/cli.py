@@ -8,6 +8,7 @@ from .commands.agents import configure_agents_parser
 from .commands.context import run_context
 from .commands.db import configure_db_parser
 from .commands.doctor import run_doctor
+from .commands.env import configure_env_parser
 from .commands.init import run_init
 from .commands.install_skills import run_install_skills
 from .commands.plan import run_plan
@@ -67,6 +68,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     configure_agents_parser(sub)
     configure_db_parser(sub)
+    configure_env_parser(sub)
 
     return parser
 

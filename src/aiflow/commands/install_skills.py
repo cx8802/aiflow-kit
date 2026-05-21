@@ -7,6 +7,7 @@ from argparse import Namespace
 from pathlib import Path
 
 from ..core.config import load_config
+from ..core.environment import render_runtime_text
 from ..core.files import copy_tree_safely
 from ..core.paths import ensure_aiflow_dir, project_root
 from ..core.resources import skills_root
@@ -69,15 +70,70 @@ def install_target(root: Path, target: str, output: Path | None, *, force: bool)
 def copy_skills_to(dst_root: Path, *, force: bool, label: str) -> list[str]:
     reports: list[str] = []
     src_root = Path(str(skills_root()))
+    root = project_root()
     dst_root.mkdir(parents=True, exist_ok=True)
     for skill in sorted(src_root.iterdir(), key=lambda p: p.name):
         if not skill.is_dir():
             continue
-        status = copy_tree_safely(skill, dst_root / skill.name, force=force)
+        status = copy_skill_tree_safely(skill, dst_root / skill.name, root=root, force=force)
         reports.append(f"{label}: {status} {dst_root / skill.name}")
         if status == "conflict":
             reports.append(f"{label}: use --force to overwrite {dst_root / skill.name}")
     return reports
+
+
+def copy_skill_tree_safely(src: Path, dst: Path, *, root: Path, force: bool = False) -> str:
+    if not has_runtime_placeholders(src):
+        return copy_tree_safely(src, dst, force=force)
+    if dst.exists():
+        if force:
+            shutil.rmtree(dst)
+        elif rendered_dirs_equal(src, dst, root):
+            return "unchanged"
+        else:
+            return "conflict"
+    copy_tree_rendered(src, dst, root)
+    return "written"
+
+
+def has_runtime_placeholders(src: Path) -> bool:
+    for file in src.rglob("*"):
+        if file.is_file() and file.suffix.lower() in {".md", ".json", ".toml"}:
+            if "{{ AIFLOW_" in file.read_text(encoding="utf-8"):
+                return True
+    return False
+
+
+def rendered_dirs_equal(src: Path, dst: Path, root: Path) -> bool:
+    src_files = sorted(path.relative_to(src) for path in src.rglob("*") if path.is_file())
+    dst_files = sorted(path.relative_to(dst) for path in dst.rglob("*") if path.is_file()) if dst.exists() else []
+    if src_files != dst_files:
+        return False
+    for rel in src_files:
+        src_file = src / rel
+        dst_file = dst / rel
+        if src_file.suffix.lower() in {".md", ".json", ".toml"}:
+            expected = render_runtime_text(src_file.read_text(encoding="utf-8"), root)
+            if not dst_file.exists() or dst_file.read_text(encoding="utf-8") != expected:
+                return False
+        elif not dst_file.exists() or src_file.read_bytes() != dst_file.read_bytes():
+            return False
+    return True
+
+
+def copy_tree_rendered(src: Path, dst: Path, root: Path) -> None:
+    dst.mkdir(parents=True, exist_ok=True)
+    for item in src.rglob("*"):
+        rel = item.relative_to(src)
+        target = dst / rel
+        if item.is_dir():
+            target.mkdir(parents=True, exist_ok=True)
+            continue
+        target.parent.mkdir(parents=True, exist_ok=True)
+        if item.suffix.lower() in {".md", ".json", ".toml"}:
+            target.write_text(render_runtime_text(item.read_text(encoding="utf-8"), root), encoding="utf-8", newline="\n")
+        else:
+            shutil.copy2(item, target)
 
 
 def create_plugin(out: Path, manifest_dir_name: str, manifest: dict, *, force: bool, label: str) -> list[str]:

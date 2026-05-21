@@ -68,6 +68,25 @@ class CliSmokeTests(unittest.TestCase):
             self.assertTrue((cwd / ".agents" / "skills" / "project-analysis" / "SKILL.md").exists())
             self.assertTrue((cwd / ".agents" / "skills" / "code-review-release" / "SKILL.md").exists())
             self.assertTrue((cwd / ".agents" / "skills" / "multi-agent-orchestrator" / "SKILL.md").exists())
+            guide = (cwd / ".agents" / "skills" / "aiflow-kit-guide" / "SKILL.md").read_text(encoding="utf-8")
+            self.assertIn(str(ROOT), guide)
+            self.assertNotIn("{{ AIFLOW_KIT_ROOT }}", guide)
+
+    def test_env_detect_writes_local_config(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            cwd = Path(tmp)
+            result = run_aiflow(cwd, "env", "detect")
+            self.assertEqual(result.returncode, 0, result.stderr)
+            env_file = cwd / ".aiflow" / "env.local.toml"
+            self.assertTrue(env_file.exists())
+            content = env_file.read_text(encoding="utf-8")
+            self.assertIn("aiflow_kit_root", content)
+            self.assertIn(str(ROOT).replace("\\", "\\\\"), content)
+            self.assertIn("[tools.python]", content)
+
+            show = run_aiflow(cwd, "env", "show")
+            self.assertEqual(show.returncode, 0, show.stderr)
+            self.assertIn("## Tools", show.stdout)
 
     def test_agents_init_plan_status_and_handoff(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

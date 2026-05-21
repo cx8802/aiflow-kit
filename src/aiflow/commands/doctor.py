@@ -1,31 +1,30 @@
 from __future__ import annotations
 
-import shutil
 from argparse import Namespace
 
 from ..core.config import config_path, load_config
+from ..core.environment import detect_environment, env_local_path
 from ..core.files import write_text_safely
 from ..core.markdown import now_stamp
 from ..core.paths import ensure_aiflow_dir, project_root
-
-
-TOOLS = ["git", "rg", "python", "go", "node", "npm.cmd", "java", "mvn"]
 
 
 def run_doctor(args: Namespace) -> int:
     root = project_root()
     ensure_aiflow_dir(root)
     config = load_config(root)
+    env_data = detect_environment(root)
 
     rows = []
     ok = True
-    for tool in TOOLS:
-        found = shutil.which(tool)
-        rows.append((tool, "ok" if found else "missing", found or ""))
+    for tool, info in env_data.get("tools", {}).items():
+        found = info.get("path", "")
+        rows.append((tool, info.get("status", "missing"), found, info.get("version", "")))
         if tool in {"git", "python"} and not found:
             ok = False
 
     config_exists = config_path(root).exists()
+    env_exists = env_local_path(root).exists()
     env_bat_exists = (root / "scripts" / "use-project-env.bat").exists()
 
     lines = [
@@ -35,17 +34,24 @@ def run_doctor(args: Namespace) -> int:
         "",
         "## Tools",
         "",
-        "| Tool | Status | Path |",
-        "| --- | --- | --- |",
+        "| Tool | Status | Path | Version |",
+        "| --- | --- | --- | --- |",
     ]
-    lines.extend(f"| `{tool}` | {status} | `{path}` |" for tool, status, path in rows)
+    lines.extend(f"| `{tool}` | {status} | `{path}` | `{version}` |" for tool, status, path, version in rows)
     lines.extend(
         [
             "",
             "## Project Files",
             "",
             f"- Config: {'ok' if config_exists else 'missing'} `{config_path(root)}`",
+            f"- Local env config: {'ok' if env_exists else 'missing'} `{env_local_path(root)}`",
             f"- BAT environment script: {'ok' if env_bat_exists else 'missing'} `scripts/use-project-env.bat`",
+            "",
+            "## Detected Paths",
+            "",
+            f"- Project root: `{env_data['paths']['project_root']}`",
+            f"- aiflow-kit root: `{env_data['paths']['aiflow_kit_root']}`",
+            f"- aiflow wrapper: `{env_data['paths']['aiflow_dev_bat']}`",
             "",
             "## Commands",
             "",
