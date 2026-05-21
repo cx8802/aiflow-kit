@@ -1,0 +1,57 @@
+[project]
+name = ""
+type = "auto"
+
+[commands]
+install = ""
+lint = ""
+typecheck = ""
+test = ""
+build = ""
+dev = ""
+
+[context]
+include = [
+  "README.md",
+  "package.json",
+  "pyproject.toml",
+  "go.mod",
+  "pom.xml",
+  "src",
+  "docs",
+  "tests"
+]
+exclude = [
+  ".git",
+  ".cache",
+  ".tools",
+  ".venv",
+  "node_modules",
+  "dist",
+  "build",
+  ".next"
+]
+
+[frontend]
+enabled = false
+dev_url = "http://localhost:3000"
+desktop_viewport = "1440x900"
+mobile_viewport = "390x844"
+
+[review]
+require_tests = true
+require_verification_summary = true
+high_risk_paths = [
+  "auth/",
+  "security/",
+  "payment/",
+  "database/",
+  "migrations/"
+]
+
+[skills]
+install_to_codex_repo = true
+install_to_codex_user = false
+install_to_claude_user = false
+install_to_claude_plugin = true
+allow_global_install = false

@@ -1,0 +1,35 @@
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+
+# Project-local tool/cache isolation
+.cache/
+.tools/
+.agents/
+.aiflow/context.md
+.aiflow/dist/
+.aiflow/doctor.md
+.aiflow/review.md
+.aiflow/verify.md
+.aiflow/*.local.toml
+.aiflow/secrets*.toml
+
+# Node
+node_modules/
+dist/
+build/
+.next/
+
+# Java / Maven
+target/
+
+# Go
+bin/
+*.exe
+*.test
+
+# IDE / OS
+.idea/
+.DS_Store
+Thumbs.db

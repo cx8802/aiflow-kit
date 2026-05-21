@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aiflow-kit"
+version = "0.1.0"
+description = "Lightweight AI coding workflow CLI, templates, and skills."
+readme = "docs/README.md"
+requires-python = ">=3.11"
+dependencies = []
+
+[project.scripts]
+aiflow = "aiflow.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+aiflow = ["assets/templates/*", "assets/skills/*/SKILL.md"]

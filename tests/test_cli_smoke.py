@@ -1,0 +1,115 @@
+from __future__ import annotations
+
+import os
+import subprocess
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parents[1]
+SRC = ROOT / "src"
+
+
+def run_aiflow(cwd: Path, *args: str, env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
+    command_env = os.environ.copy()
+    command_env["PYTHONPATH"] = str(SRC)
+    if env:
+        command_env.update(env)
+    return subprocess.run(
+        [sys.executable, "-m", "aiflow", *args],
+        cwd=cwd,
+        text=True,
+        capture_output=True,
+        env=command_env,
+    )
+
+
+class CliSmokeTests(unittest.TestCase):
+    def test_init_generates_project_files_without_context(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            cwd = Path(tmp)
+            result = run_aiflow(cwd, "init", "--no-context")
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertTrue((cwd / "AGENTS.md").exists())
+            self.assertTrue((cwd / "CLAUDE.md").exists())
+            self.assertTrue((cwd / ".aiflow" / "config.toml").exists())
+            self.assertFalse((cwd / ".aiflow" / "context.md").exists())
+
+    def test_context_uses_file_scan_section(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            cwd = Path(tmp)
+            (cwd / "README.md").write_text("# Demo\n", encoding="utf-8")
+            result = run_aiflow(cwd, "context")
+            self.assertEqual(result.returncode, 0, result.stderr)
+            report = (cwd / ".aiflow" / "context.md").read_text(encoding="utf-8")
+            self.assertIn("## File Scan", report)
+            self.assertIn("README.md", report)
+
+    def test_install_skills_defaults_to_project_codex_skills(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            cwd = Path(tmp)
+            result = run_aiflow(cwd, "install-skills")
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertTrue((cwd / ".agents" / "skills" / "project-analysis" / "SKILL.md").exists())
+            self.assertTrue((cwd / ".agents" / "skills" / "code-review-release" / "SKILL.md").exists())
+
+    def test_verify_dry_run_uses_configured_commands_only(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            cwd = Path(tmp)
+            (cwd / ".aiflow").mkdir()
+            (cwd / ".aiflow" / "config.toml").write_text(
+                """
+[commands]
+lint = "python --version"
+test = "python --version"
+""".strip()
+                + "\n",
+                encoding="utf-8",
+            )
+            result = run_aiflow(cwd, "verify", "--dry-run")
+            self.assertEqual(result.returncode, 0, result.stderr)
+            report = (cwd / ".aiflow" / "verify.md").read_text(encoding="utf-8")
+            self.assertIn("lint: `python --version`", report)
+            self.assertIn("test: `python --version`", report)
+            self.assertIn("dry-run", report)
+
+    def test_codex_user_install_requires_explicit_global_flags(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            cwd = Path(tmp)
+            fake_home = cwd / "home"
+            fake_home.mkdir()
+            result = run_aiflow(cwd, "install-skills", "--target", "codex-user", env={"USERPROFILE": str(fake_home)})
+            self.assertEqual(result.returncode, 2)
+            self.assertIn("--confirm-global", result.stdout)
+
+    def test_db_add_list_show_and_sqlite_test(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            cwd = Path(tmp)
+            add = run_aiflow(cwd, "db", "add", "local", "--type", "sqlite", "--path", "data/local.db")
+            self.assertEqual(add.returncode, 0, add.stderr)
+            self.assertTrue((cwd / ".aiflow" / "databases.toml").exists())
+
+            listing = run_aiflow(cwd, "db", "list")
+            self.assertEqual(listing.returncode, 0, listing.stderr)
+            self.assertIn("local: sqlite", listing.stdout)
+
+            show = run_aiflow(cwd, "db", "show", "local")
+            self.assertEqual(show.returncode, 0, show.stderr)
+            self.assertIn('"type": "sqlite"', show.stdout)
+
+            test = run_aiflow(cwd, "db", "test", "local")
+            self.assertEqual(test.returncode, 0, test.stderr)
+            self.assertTrue((cwd / "data" / "local.db").exists())
+
+    def test_db_refuses_plain_secret_without_local_file(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            cwd = Path(tmp)
+            result = run_aiflow(cwd, "db", "add", "dev", "--type", "postgres", "--dsn", "postgres://user:pass@localhost/db")
+            self.assertEqual(result.returncode, 2)
+            self.assertIn("Refusing to store database secrets", result.stdout)
+
+
+if __name__ == "__main__":
+    unittest.main()
