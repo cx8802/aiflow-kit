@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import os
 import subprocess
 from argparse import Namespace
 from pathlib import Path
@@ -9,6 +8,7 @@ from typing import Any
 
 from ..core.claude_agent import (
     SDK_PACKAGE,
+    claude_code_command,
     claude_agent_config,
     command_env,
     default_context_files,
@@ -101,7 +101,7 @@ def claude_agent_install(args: Namespace) -> int:
         return 0
 
     ensure_package_json(target)
-    env = command_env(config, use_proxy=should_use_proxy(config, no_proxy=args.no_proxy))
+    env = command_env(root, config, use_proxy=should_use_proxy(config, no_proxy=args.no_proxy))
     result = subprocess.run(command, cwd=root, env=env, text=True)
     return result.returncode
 
@@ -116,13 +116,14 @@ def claude_agent_doctor(args: Namespace) -> int:
     runner = runner_path(root, config)
     target = package_dir(root, config)
 
+    env = command_env(root, config, use_proxy=False)
     rows = [
         ("enabled", "ok" if config.get("enabled") else "disabled", str(config.get("enabled", False))),
         ("node", "ok" if node else "missing", node or ""),
         ("npm", "ok" if npm else "missing", npm or ""),
         ("sdk package", "ok" if sdk_installed(root, config) else "missing", str(target)),
         ("runner", "ok" if runner.exists() else "missing", str(runner)),
-        ("api key env", "ok" if api_key_env and api_key_env in os.environ else "missing", api_key_env),
+        ("api key env", "ok" if api_key_env and api_key_env in env else "missing", api_key_env),
         ("base url env", "optional", base_url_env),
     ]
     print("# Claude Agent Doctor")
@@ -149,9 +150,10 @@ def claude_agent_run(args: Namespace) -> int:
         print(error)
         return 2
 
+    env = command_env(root, config, use_proxy=should_use_proxy(config, no_proxy=args.no_proxy))
     if not args.dry_run:
         api_key_env = str(config.get("api_key_env", "ANTHROPIC_API_KEY"))
-        if api_key_env and api_key_env not in os.environ:
+        if api_key_env and api_key_env not in env:
             print(f"Missing API key environment variable: {api_key_env}")
             return 2
         if not sdk_installed(root, config):
@@ -176,7 +178,6 @@ def claude_agent_run(args: Namespace) -> int:
     write_json(run_dir / "input.json", input_data)
     node = node_command()
     assert node is not None
-    env = command_env(config, use_proxy=should_use_proxy(config, no_proxy=args.no_proxy))
     try:
         result = subprocess.run(
             [node, str(runner_path(root, config)), str(run_dir / "input.json")],
@@ -231,6 +232,7 @@ def build_input(
         "prompt": prompt,
         "model": model,
         "packageDir": str(package_dir(root, config)),
+        "claudeCodeExecutable": claude_code_command(),
         "outputDir": str(run_dir),
         "usageFile": str(usage_file(root, config)),
         "sessionsDir": str(sessions_dir(root, config)),

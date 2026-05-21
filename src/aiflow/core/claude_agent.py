@@ -4,6 +4,7 @@ import json
 import os
 import shutil
 import subprocess
+import tomllib
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -40,6 +41,10 @@ def usage_file(root: Path, config: dict[str, Any]) -> Path:
     return resolve_project_path(root, str(config.get("usage_file", ".aiflow/claude-agent/usage.jsonl")))
 
 
+def local_env_path(root: Path) -> Path:
+    return root / ".aiflow" / "claude-agent.local.toml"
+
+
 def runner_path(root: Path, config: dict[str, Any]) -> Path:
     configured = Path(str(config.get("runner", "node/claude-agent-runner/runner.mjs")))
     if configured.is_absolute():
@@ -74,6 +79,10 @@ def npm_command() -> str | None:
     return shutil.which("npm.cmd" if os.name == "nt" else "npm") or shutil.which("npm")
 
 
+def claude_code_command() -> str | None:
+    return shutil.which("claude.exe" if os.name == "nt" else "claude") or shutil.which("claude")
+
+
 def sdk_installed(root: Path, config: dict[str, Any]) -> bool:
     return (package_dir(root, config) / "node_modules" / "@anthropic-ai" / "claude-agent-sdk").exists()
 
@@ -88,6 +97,18 @@ def ensure_package_json(path: Path) -> Path:
             newline="\n",
         )
     return package_json
+
+
+def load_local_env(root: Path) -> dict[str, str]:
+    path = local_env_path(root)
+    if not path.exists():
+        return {}
+    with path.open("rb") as file:
+        data = tomllib.load(file)
+    env = data.get("env", {})
+    if not isinstance(env, dict):
+        return {}
+    return {str(key): str(value) for key, value in env.items() if isinstance(value, (str, int, float, bool))}
 
 
 def make_run_id(task: str) -> str:
@@ -108,18 +129,19 @@ def default_context_files(root: Path) -> list[str]:
     return [relative for relative in candidates if (root / relative).exists()]
 
 
-def command_env(config: dict[str, Any], *, use_proxy: bool) -> dict[str, str]:
+def command_env(root: Path, config: dict[str, Any], *, use_proxy: bool) -> dict[str, str]:
     env = os.environ.copy()
+    env.update(load_local_env(root))
     api_key_env = str(config.get("api_key_env", "ANTHROPIC_API_KEY"))
     base_url_env = str(config.get("base_url_env", "ANTHROPIC_BASE_URL"))
     auth_token_env = str(config.get("auth_token_env", ""))
 
-    if api_key_env and api_key_env != "ANTHROPIC_API_KEY" and os.environ.get(api_key_env):
-        env["ANTHROPIC_API_KEY"] = os.environ[api_key_env]
-    if base_url_env and base_url_env != "ANTHROPIC_BASE_URL" and os.environ.get(base_url_env):
-        env["ANTHROPIC_BASE_URL"] = os.environ[base_url_env]
-    if auth_token_env and os.environ.get(auth_token_env):
-        env["ANTHROPIC_AUTH_TOKEN"] = os.environ[auth_token_env]
+    if api_key_env and api_key_env != "ANTHROPIC_API_KEY" and env.get(api_key_env):
+        env["ANTHROPIC_API_KEY"] = env[api_key_env]
+    if base_url_env and base_url_env != "ANTHROPIC_BASE_URL" and env.get(base_url_env):
+        env["ANTHROPIC_BASE_URL"] = env[base_url_env]
+    if auth_token_env and env.get(auth_token_env):
+        env["ANTHROPIC_AUTH_TOKEN"] = env[auth_token_env]
 
     if use_proxy:
         proxy = str(config.get("overseas_proxy", "http://127.0.0.1:10808"))

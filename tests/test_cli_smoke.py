@@ -11,6 +11,10 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
+if str(SRC) not in sys.path:
+    sys.path.insert(0, str(SRC))
+
+from aiflow.core.claude_agent import command_env
 
 
 def run_aiflow(cwd: Path, *args: str, env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
@@ -190,6 +194,7 @@ class CliSmokeTests(unittest.TestCase):
             result = run_aiflow(cwd, "claude-agent", "run", "summarize", "commands", "--model", "test-model", "--dry-run")
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertIn('"model": "test-model"', result.stdout)
+            self.assertIn('"claudeCodeExecutable"', result.stdout)
             self.assertIn('"allowedTools"', result.stdout)
             self.assertIn('"Read"', result.stdout)
             self.assertIn('"disallowedTools"', result.stdout)
@@ -202,6 +207,35 @@ class CliSmokeTests(unittest.TestCase):
             result = run_aiflow(cwd, "claude-agent", "run", "summarize", "--dry-run")
             self.assertEqual(result.returncode, 2)
             self.assertIn("claude_agent.small_model is empty", result.stdout)
+
+    def test_claude_agent_local_env_maps_auth_token_and_base_url(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            cwd = Path(tmp)
+            local = cwd / ".aiflow" / "claude-agent.local.toml"
+            local.parent.mkdir()
+            local.write_text(
+                """
+[env]
+MINIMAX_AUTH = "local-token"
+MINIMAX_BASE_URL = "https://example.invalid/anthropic"
+""".strip()
+                + "\n",
+                encoding="utf-8",
+            )
+
+            env = command_env(
+                cwd,
+                {
+                    "api_key_env": "MINIMAX_AUTH",
+                    "auth_token_env": "MINIMAX_AUTH",
+                    "base_url_env": "MINIMAX_BASE_URL",
+                },
+                use_proxy=False,
+            )
+
+            self.assertEqual(env["ANTHROPIC_API_KEY"], "local-token")
+            self.assertEqual(env["ANTHROPIC_AUTH_TOKEN"], "local-token")
+            self.assertEqual(env["ANTHROPIC_BASE_URL"], "https://example.invalid/anthropic")
 
     def test_claude_agent_usage_reads_usage_file(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

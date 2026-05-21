@@ -37,6 +37,9 @@ async function main() {
     allowedTools: input.allowedTools,
     disallowedTools: input.disallowedTools
   };
+  if (input.claudeCodeExecutable) {
+    options.pathToClaudeCodeExecutable = input.claudeCodeExecutable;
+  }
 
   for await (const message of sdk.query({ prompt, options })) {
     await appendFile(messagesPath, JSON.stringify(message) + "\n", "utf8");

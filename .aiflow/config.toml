@@ -39,18 +39,18 @@ compact_file = ".aiflow/context.compact.md"
 max_compact_entries = 30
 
 [claude_agent]
-enabled = false
+enabled = true
 runtime = "node"
 package_dir = ".tools/claude-agent"
 runner = "node/claude-agent-runner/runner.mjs"
 default_model = "small"
-small_model = ""
-standard_model = ""
-strong_model = ""
-api_key_env = "ANTHROPIC_API_KEY"
+small_model = "MiniMax-M2.7"
+standard_model = "MiniMax-M2.7"
+strong_model = "MiniMax-M2.7"
+api_key_env = "ANTHROPIC_AUTH_TOKEN"
 base_url_env = "ANTHROPIC_BASE_URL"
-auth_token_env = ""
-proxy_mode = "auto"
+auth_token_env = "ANTHROPIC_AUTH_TOKEN"
+proxy_mode = "direct"
 overseas_proxy = "http://127.0.0.1:10808"
 china_direct = true
 permission_mode = "dontAsk"
