@@ -4,6 +4,7 @@ import argparse
 from pathlib import Path
 
 from . import __version__
+from .commands.agents import configure_agents_parser
 from .commands.context import run_context
 from .commands.db import configure_db_parser
 from .commands.doctor import run_doctor
@@ -64,6 +65,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_install.add_argument("--allow-global", action="store_true", help="Allow generic bundled skills to be installed globally")
     p_install.set_defaults(func=run_install_skills)
 
+    configure_agents_parser(sub)
     configure_db_parser(sub)
 
     return parser

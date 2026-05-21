@@ -12,6 +12,7 @@ __pycache__/
 .aiflow/doctor.md
 .aiflow/review.md
 .aiflow/verify.md
+.aiflow/agents/
 .aiflow/*.local.toml
 .aiflow/secrets*.toml
 

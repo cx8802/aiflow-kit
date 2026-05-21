@@ -67,6 +67,30 @@ class CliSmokeTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertTrue((cwd / ".agents" / "skills" / "project-analysis" / "SKILL.md").exists())
             self.assertTrue((cwd / ".agents" / "skills" / "code-review-release" / "SKILL.md").exists())
+            self.assertTrue((cwd / ".agents" / "skills" / "multi-agent-orchestrator" / "SKILL.md").exists())
+
+    def test_agents_init_plan_status_and_handoff(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            cwd = Path(tmp)
+            init = run_aiflow(cwd, "agents", "init")
+            self.assertEqual(init.returncode, 0, init.stderr)
+            self.assertTrue((cwd / ".aiflow" / "agents" / "roles.toml").exists())
+            self.assertTrue((cwd / ".aiflow" / "agents" / "status.md").exists())
+            self.assertTrue((cwd / ".aiflow" / "agents" / "handoff.md").exists())
+
+            plan = run_aiflow(cwd, "agents", "plan", "add", "multi", "agent", "workflow")
+            self.assertEqual(plan.returncode, 0, plan.stderr)
+            task_files = sorted((cwd / ".aiflow" / "agents" / "tasks").glob("*.md"))
+            self.assertEqual(len(task_files), 4)
+            self.assertTrue(any("001-explore" in path.name for path in task_files))
+
+            status = run_aiflow(cwd, "agents", "status")
+            self.assertEqual(status.returncode, 0, status.stderr)
+            self.assertIn("tasks: 4", status.stdout)
+
+            handoff = run_aiflow(cwd, "agents", "handoff", "demo", "--force")
+            self.assertEqual(handoff.returncode, 0, handoff.stderr)
+            self.assertIn("written:", handoff.stdout)
 
     def test_verify_dry_run_uses_configured_commands_only(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

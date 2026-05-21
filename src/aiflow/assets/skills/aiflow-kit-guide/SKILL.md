@@ -17,6 +17,7 @@ It provides:
 - Reusable Skills for Codex and Claude Code.
 - Project templates: `AGENTS.md`, `CLAUDE.md`, `.aiflow/config.toml`.
 - Review, context, verification, and skill installation commands.
+- Project-level multi-agent coordination files under `.aiflow/agents/`.
 - Windows `.bat` helper scripts for project-local environment setup.
 
 ## Main Commands
@@ -32,6 +33,9 @@ aiflow plan
 aiflow review
 aiflow verify
 aiflow install-skills
+aiflow agents init
+aiflow agents plan "goal"
+aiflow agents status
 ```
 
 When the command is not on PATH, use the source wrapper:
@@ -69,6 +73,7 @@ AGENTS.md
 CLAUDE.md
 .aiflow/config.toml
 .aiflow/context.md
+.aiflow/agents/
 .agents/skills/
 ```
 
@@ -92,4 +97,7 @@ If the user means Apache Airflow, clarify that it is a different data workflow s
 - Install only generic Skills globally.
 - Do not use PowerShell `.ps1`; use `.bat`.
 - Do not write permanent environment variables with `setx`.
-- Use `scripts\use-project-env.bat proxy` when the local `10808` proxy is needed.
+- Network proxy policy is global for aiflow work: access China websites directly; access non-China websites through `http://127.0.0.1:10808` when network access is needed.
+- Do not enable `HTTP_PROXY`/`HTTPS_PROXY` for every command by default. Use proxy only for non-China resources such as GitHub, OpenAI, npmjs.org, Maven Central, Docker Hub, and other overseas services.
+- Prefer direct access for China resources such as Gitee, Aliyun, Tencent Cloud, Baidu, Huawei Cloud, Tsinghua/USTC mirrors, `npmmirror.com`, and `.cn` domains.
+- For one project/session that needs overseas access, use `scripts\use-project-env.bat proxy`; keep proxy settings scoped to the current `cmd` session.

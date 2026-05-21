@@ -28,6 +28,7 @@
 | [14-测试与质量检查.md](14-测试与质量检查.md) | 说明 unittest、compileall 和 CLI smoke test 的运行方式 |
 | [15-数据库连接项目级配置.md](15-数据库连接项目级配置.md) | 说明如何把数据库连接保存为项目级配置并保护 secret |
 | [16-在其他项目中安装aiflow-kit.md](16-在其他项目中安装aiflow-kit.md) | 说明 Codex/Claude 如何用 `D:\code_work\aiflow-kit` 源码路径给其他项目安装 aiflow-kit |
+| [17-多Agent协作流程.md](17-多Agent协作流程.md) | 说明多 Agent 角色、任务队列、项目级 handoff 和全局 Skills 边界 |
 
 ## 辅助安装文档
 
@@ -43,7 +44,7 @@
 
 第一版只交付可落地的工程骨架，不做大型平台：
 
-- 5 个核心流程 Skills：`project-analysis`、`implementation-plan`、`tdd-development`、`frontend-verify`、`code-review-release`，以及 3 个全局辅助 Skills：`aiflow-kit-guide`、`aiflow-kit-installer`、`aiflow-kit-updater`。
+- 5 个核心流程 Skills：`project-analysis`、`implementation-plan`、`tdd-development`、`frontend-verify`、`code-review-release`，3 个全局辅助 Skills：`aiflow-kit-guide`、`aiflow-kit-installer`、`aiflow-kit-updater`，以及 4 个多 Agent Skills：`multi-agent-orchestrator`、`multi-agent-explorer`、`multi-agent-worker`、`multi-agent-reviewer`。
 - 一个轻量 CLI：`aiflow init/context/plan/review/verify/doctor/install-skills`。
 - Claude Code 插件包：`.claude-plugin/plugin.json` + `skills/`。
 - Codex 插件包：`.codex-plugin/plugin.json` + `skills/`。
