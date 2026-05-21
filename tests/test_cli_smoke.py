@@ -42,6 +42,15 @@ class CliSmokeTests(unittest.TestCase):
             self.assertTrue((cwd / ".aiflow" / "config.toml").exists())
             self.assertFalse((cwd / ".aiflow" / "context.md").exists())
 
+    def test_init_keeps_claude_agent_runtime_paths_out_of_project_config(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            cwd = Path(tmp)
+            result = run_aiflow(cwd, "init", "--no-context")
+            self.assertEqual(result.returncode, 0, result.stderr)
+            config = (cwd / ".aiflow" / "config.toml").read_text(encoding="utf-8")
+            self.assertNotIn("package_dir =", config)
+            self.assertNotIn("runner =", config)
+
     def test_context_uses_file_scan_section(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             cwd = Path(tmp)
