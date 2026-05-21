@@ -177,13 +177,12 @@ class CliSmokeTests(unittest.TestCase):
             self.assertIn(".tools/", gitignore)
             self.assertIn(".cache/", gitignore)
 
-    def test_claude_agent_install_dry_run_uses_project_local_sdk_package(self) -> None:
+    def test_claude_agent_install_dry_run_uses_aiflow_kit_sdk_package(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             cwd = Path(tmp)
             result = run_aiflow(cwd, "claude-agent", "install", "--dry-run")
             self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertIn(".tools", result.stdout)
-            self.assertIn("claude-agent", result.stdout)
+            self.assertIn(str(ROOT / ".tools" / "claude-agent"), result.stdout)
             self.assertIn("@anthropic-ai/claude-agent-sdk", result.stdout)
 
     def test_claude_agent_run_dry_run_builds_read_only_input(self) -> None:
