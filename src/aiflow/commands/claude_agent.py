@@ -31,10 +31,10 @@ from ..core.paths import ensure_aiflow_dir, project_root
 
 
 def configure_claude_agent_parser(sub) -> None:
-    parser = sub.add_parser("claude-agent", help="Use project-local Claude Agent SDK worker")
+    parser = sub.add_parser("claude-agent", help="Use aiflow-kit Claude Agent SDK worker")
     agent_sub = parser.add_subparsers(dest="claude_agent_command", required=True)
 
-    install = agent_sub.add_parser("install", help="Install Claude Agent SDK into project-local tools")
+    install = agent_sub.add_parser("install", help="Install Claude Agent SDK into aiflow-kit tools")
     install.add_argument("--dry-run", action="store_true", help="Print commands without running npm")
     install.add_argument("--no-proxy", action="store_true", help="Do not set 10808 proxy for npm install")
     install.set_defaults(func=run_claude_agent)

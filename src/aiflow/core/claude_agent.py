@@ -26,7 +26,8 @@ def claude_agent_config(root: Path) -> dict[str, Any]:
 
 
 def package_dir(root: Path, config: dict[str, Any]) -> Path:
-    return resolve_project_path(root, str(config.get("package_dir", ".tools/claude-agent")))
+    configured = Path(str(config.get("package_dir", ".tools/claude-agent")))
+    return configured if configured.is_absolute() else aiflow_kit_root() / configured
 
 
 def runs_dir(root: Path, config: dict[str, Any]) -> Path:

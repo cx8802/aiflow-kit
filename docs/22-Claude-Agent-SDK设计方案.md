@@ -16,7 +16,7 @@
 - `aiflow claude-agent compact`
 - `aiflow claude-agent usage`
 - Node runner：`node/claude-agent-runner/runner.mjs`
-- 项目级 SDK 安装目录：`.tools/claude-agent`
+- aiflow-kit 级 SDK 安装目录：`.tools/claude-agent`
 
 默认仍是 disabled，需要配置模型和 API Key 后才真实调用。`--dry-run` 不需要 API Key。
 
@@ -24,7 +24,7 @@
 
 - 用 Node 调用 Claude Agent SDK。
 - 由 Python 版 `aiflow` CLI 编排，Node runner 只负责 SDK 调用。
-- 默认项目级安装，不污染全局 npm。
+- 默认安装到 `aiflow-kit`，不污染全局 npm，也不向目标项目分发 Node SDK 依赖。
 - 默认只读，不自动编辑代码。
 - API Key、Base URL、模型、代理、预算、工具权限都来自配置。
 - 可以配置小模型处理基础任务，必要时再切到更强模型。
@@ -76,6 +76,8 @@ aiflow claude-agent install
 ```bat
 npm install --prefix .tools\claude-agent @anthropic-ai/claude-agent-sdk
 ```
+
+相对 `package_dir` 始终按 `aiflow-kit` 根目录解析。目标项目只保留 `.aiflow/claude-agent/` 运行结果、上下文和本地 secret；从目标项目调用 `aiflow claude-agent install` 时也复用 `aiflow-kit/.tools/claude-agent`。
 
 是否使用 `npmjs.org`、镜像源或 10808 代理由配置决定。中国网站直连，海外资源按全局 aiflow 代理策略使用 `http://127.0.0.1:10808`。
 
@@ -191,7 +193,7 @@ aiflow claude-agent usage
 
 - Node 是否存在。
 - npm 是否存在。
-- `.tools/claude-agent` 是否可写。
+- `aiflow-kit/.tools/claude-agent` 是否可写。
 - SDK 包是否安装。
 - 是否需要海外代理。
 
