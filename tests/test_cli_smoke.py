@@ -10,8 +10,10 @@ import tempfile
 import threading
 import unittest
 import urllib.error
+import urllib.parse
 import urllib.request
 import zipfile
+from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 
 
@@ -816,6 +818,91 @@ test = "python --version"
             result = run_aiflow(cwd, "db", "add", "dev", "--type", "postgres", "--dsn", "postgres://user:pass@localhost/db")
             self.assertEqual(result.returncode, 2)
             self.assertIn("Refusing to store database secrets", result.stdout)
+
+    def test_nacos_add_show_get_and_write(self) -> None:
+        requests: list[dict[str, str]] = []
+
+        class NacosHandler(BaseHTTPRequestHandler):
+            def do_GET(self) -> None:
+                parsed = urllib.parse.urlparse(self.path)
+                query = urllib.parse.parse_qs(parsed.query)
+                requests.append({key: values[0] for key, values in query.items()})
+                if parsed.path != "/nacos/v1/cs/configs":
+                    self.send_response(404)
+                    self.end_headers()
+                    return
+                self.send_response(200)
+                self.send_header("Content-Type", "text/plain; charset=utf-8")
+                self.end_headers()
+                self.wfile.write(b"server.port=8080\nfeature.enabled=true\n")
+
+            def log_message(self, format: str, *args: object) -> None:
+                return
+
+        server = HTTPServer(("127.0.0.1", 0), NacosHandler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            with tempfile.TemporaryDirectory() as tmp:
+                cwd = Path(tmp)
+                base_url = f"http://127.0.0.1:{server.server_port}"
+                add = run_aiflow(
+                    cwd,
+                    "nacos",
+                    "add",
+                    "dev",
+                    "--server",
+                    base_url,
+                    "--namespace",
+                    "public",
+                    "--access-token",
+                    "secret-token",
+                    "--secret-local",
+                )
+                self.assertEqual(add.returncode, 0, add.stderr)
+                self.assertTrue((cwd / ".aiflow" / "nacos.toml").exists())
+                self.assertTrue((cwd / ".aiflow" / "nacos.local.toml").exists())
+                self.assertNotIn("secret-token", (cwd / ".aiflow" / "nacos.toml").read_text(encoding="utf-8"))
+
+                listing = run_aiflow(cwd, "nacos", "list")
+                self.assertEqual(listing.returncode, 0, listing.stderr)
+                self.assertIn("dev:", listing.stdout)
+                self.assertIn("+ local secrets", listing.stdout)
+
+                show = run_aiflow(cwd, "nacos", "show", "dev")
+                self.assertEqual(show.returncode, 0, show.stderr)
+                self.assertIn('"access_token_local": "***"', show.stdout)
+
+                output = cwd / "out" / "app.properties"
+                get = run_aiflow(
+                    cwd,
+                    "nacos",
+                    "get",
+                    "dev",
+                    "--data-id",
+                    "app.properties",
+                    "--group",
+                    "DEFAULT_GROUP",
+                    "--output",
+                    str(output),
+                )
+                self.assertEqual(get.returncode, 0, get.stderr)
+                self.assertIn("server.port=8080", get.stdout)
+                self.assertEqual(output.read_text(encoding="utf-8"), "server.port=8080\nfeature.enabled=true\n")
+                self.assertEqual(requests[-1]["dataId"], "app.properties")
+                self.assertEqual(requests[-1]["group"], "DEFAULT_GROUP")
+                self.assertEqual(requests[-1]["tenant"], "public")
+                self.assertEqual(requests[-1]["accessToken"], "secret-token")
+        finally:
+            server.shutdown()
+            server.server_close()
+
+    def test_nacos_refuses_plain_secret_without_local_file(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            cwd = Path(tmp)
+            result = run_aiflow(cwd, "nacos", "add", "dev", "--server", "http://127.0.0.1:8848", "--password", "secret")
+            self.assertEqual(result.returncode, 2)
+            self.assertIn("Refusing to store Nacos secrets", result.stdout)
 
 
 if __name__ == "__main__":

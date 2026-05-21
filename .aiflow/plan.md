@@ -1,35 +1,18 @@
-# Implementation Plan
+# Plan
 
-## Goal
+Add a backend-driven browser automation path to the Chrome/Edge extension.
 
-Add a general `aiflow db query` command so database profiles can run arbitrary project-requested queries instead of only connection tests and table listings.
+## Scope
 
-## Current Support
-
-- Profile management: `aiflow db add/list/show`
-- Health check: `aiflow db test`
-- Metadata listing: `aiflow db tables`
-- Database types: `sqlite`, `mysql`, `postgres`, `sqlserver`, `oracle`, `mongodb`
-
-## Impact Scope
-
-- `src/aiflow/commands/db.py`
-- `src/aiflow/core/databases.py`
-- `tests/test_cli_smoke.py`
-- `docs/15-数据库连接项目级配置.md`
+- Keep browser automation jobs controlled by the project backend queue.
+- Let the extension configuration page trigger the next queued job without accepting a manual URL.
+- Open backend-provided URLs in a real browser tab and run extract/click/fill/wait steps there.
+- Keep sensitive browser data out of captures: no cookies, localStorage, sessionStorage, raw headers, request bodies, or response bodies.
 
 ## Steps
 
-1. Add smoke tests for `aiflow db query` using SQLite.
-2. Add CLI parser support for SQL text, row limit, and output format.
-3. Implement query execution for SQLite, MySQL, PostgreSQL, SQL Server, Oracle, and MongoDB.
-4. Print result rows for returning queries and affected row counts for non-returning queries.
-5. Update database usage docs.
-6. Run focused and configured verification.
-
-## Verification
-
-- `python -m unittest tests.test_cli_smoke.CliSmokeTests.test_db_query_runs_sqlite_select_and_writes`
-- `python -m unittest discover -s tests`
-- `python -m compileall src`
-- `scripts\aiflow-dev.bat verify --auto --continue-on-error`
+1. Add a configuration-page automation action and result area.
+2. Implement a settings-page automation runner using `chrome.tabs` and `chrome.scripting`.
+3. Expose the shared in-page adapter to injected scripts.
+4. Update extension documentation for the new trigger path.
+5. Run extension checks and project verification.

@@ -16,6 +16,7 @@ from .commands.frontend import configure_frontend_parser
 from .commands.init import run_init
 from .commands.install_skills import run_install_skills
 from .commands.memory import configure_memory_parser
+from .commands.nacos import configure_nacos_parser
 from .commands.plan import run_plan
 from .commands.review import run_review
 from .commands.verify import run_verify
@@ -81,6 +82,7 @@ def build_parser() -> argparse.ArgumentParser:
     configure_env_parser(sub)
     configure_frontend_parser(sub)
     configure_memory_parser(sub)
+    configure_nacos_parser(sub)
 
     return parser
 
