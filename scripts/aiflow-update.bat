@@ -1,9 +1,33 @@
 @echo off
 set "AIFLOW_KIT_ROOT=%~dp0.."
 for %%I in ("%AIFLOW_KIT_ROOT%") do set "AIFLOW_KIT_ROOT=%%~fI"
+set "AIFLOW_UPDATE_PROJECT=0"
+
+:parse_args
+if "%~1"=="" goto args_done
+if /i "%~1"=="--with-project" (
+  set "AIFLOW_UPDATE_PROJECT=1"
+  shift
+  goto parse_args
+)
+if /i "%~1"=="--project" (
+  set "AIFLOW_UPDATE_PROJECT=1"
+  shift
+  goto parse_args
+)
+if /i "%~1"=="--help" goto usage
+if /i "%~1"=="-h" goto usage
+echo Unknown option: %~1
+goto usage
+
+:args_done
 
 echo Updating aiflow-kit from: %AIFLOW_KIT_ROOT%
-echo Target project: %CD%
+if "%AIFLOW_UPDATE_PROJECT%"=="1" (
+  echo Target project: %CD%
+) else (
+  echo Target project: skipped. Use --with-project to update project aiflow files.
+)
 echo.
 
 echo [1/9] Detect local aiflow-kit path and tool environment...
@@ -37,6 +61,8 @@ call "%AIFLOW_KIT_ROOT%\scripts\aiflow-dev.bat" install-skills --target codex-pl
 if errorlevel 1 goto failed
 
 echo.
+if not "%AIFLOW_UPDATE_PROJECT%"=="1" goto skip_project
+
 echo [7/9] Ensure project aiflow files exist...
 call "%AIFLOW_KIT_ROOT%\scripts\aiflow-dev.bat" init
 if errorlevel 1 goto failed
@@ -50,6 +76,15 @@ echo.
 echo [9/9] Refresh project context and compact context...
 call "%AIFLOW_KIT_ROOT%\scripts\aiflow-dev.bat" context --compact
 if errorlevel 1 goto failed
+goto done_project
+
+:skip_project
+echo.
+echo [7/9] Skip project aiflow files. Use --with-project to install or refresh them.
+echo [8/9] Skip project-level skills.
+echo [9/9] Skip project context refresh.
+
+:done_project
 
 echo.
 echo aiflow-kit update complete.
@@ -60,9 +95,11 @@ echo.
 echo Updated global Claude Code skills:
 echo   %USERPROFILE%\.claude\skills
 echo.
-echo Updated project skills:
-echo   %CD%\.agents\skills
-echo.
+if "%AIFLOW_UPDATE_PROJECT%"=="1" (
+  echo Updated project skills:
+  echo   %CD%\.agents\skills
+  echo.
+)
 echo Updated Claude plugin package:
 echo   %AIFLOW_KIT_ROOT%\.aiflow\dist\claude
 echo.
@@ -75,6 +112,13 @@ echo   %AIFLOW_KIT_ROOT%\.tools\ms-playwright
 echo.
 echo Restart Codex or Claude Code if you need them to reload global skills/plugins.
 exit /b 0
+
+:usage
+echo Usage: %~nx0 [--with-project]
+echo.
+echo   Default: update global aiflow skills and plugin packages only.
+echo   --with-project  Also create or refresh aiflow files in the current project.
+exit /b 2
 
 :failed
 echo.

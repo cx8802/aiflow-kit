@@ -1,0 +1,5 @@
+[databases.zhihaoscm]
+type = "mysql"
+host = "192.168.110.210"
+port = 3306
+database = "zhihaoscm"

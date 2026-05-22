@@ -151,6 +151,7 @@ aiflow-kit/
   src/aiflow/assets/templates 项目模板
   scripts/                    Windows 包装与安装脚本
   docs/                       设计文档和专题指南
+  apps/aiflow-gui/            Tauri 2 desktop GUI scaffold
   extensions/browser/         Chrome/Edge 浏览器伴随插件
   node/claude-agent-runner/   Claude Agent SDK runner
   tests/                      CLI smoke tests

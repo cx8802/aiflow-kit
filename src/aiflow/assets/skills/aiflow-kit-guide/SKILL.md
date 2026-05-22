@@ -64,10 +64,16 @@ To install aiflow-kit into the current project from any repository:
 {{ AIFLOW_DEV_BAT }} context --compact
 ```
 
-To update both global aiflow Skills/plugins and the current project's aiflow files:
+To update global aiflow Skills/plugins:
 
 ```bat
 {{ AIFLOW_UPDATE_BAT }}
+```
+
+To also create or refresh the current project's aiflow files:
+
+```bat
+{{ AIFLOW_UPDATE_BAT }} --with-project
 ```
 
 ## Discovery Model
