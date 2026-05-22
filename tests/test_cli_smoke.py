@@ -503,15 +503,69 @@ class CliSmokeTests(unittest.TestCase):
             cwd = Path(tmp)
             (cwd / ".aiflow").mkdir()
             (cwd / ".aiflow" / "context.compact.md").write_text("# Compact\n", encoding="utf-8")
+            (cwd / ".aiflow" / "context.md").write_text("# Full context\n", encoding="utf-8")
+            (cwd / ".aiflow" / "memory.md").write_text("# Memory\n", encoding="utf-8")
             result = run_aiflow(cwd, "claude-agent", "run", "summarize", "commands", "--model", "test-model", "--dry-run")
             self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertIn('"model": "test-model"', result.stdout)
-            self.assertIn('"claudeCodeExecutable"', result.stdout)
-            self.assertIn('"allowedTools"', result.stdout)
-            self.assertIn('"Read"', result.stdout)
-            self.assertIn('"disallowedTools"', result.stdout)
-            self.assertIn('"Bash"', result.stdout)
-            self.assertIn(".aiflow/context.compact.md", result.stdout)
+            payload = json.loads(result.stdout)
+            self.assertEqual(payload["model"], "test-model")
+            self.assertIn("claudeCodeExecutable", payload)
+            self.assertIn("Read", payload["allowedTools"])
+            self.assertIn("Bash", payload["disallowedTools"])
+            self.assertEqual(payload["contextLevel"], "compact")
+            self.assertEqual(payload["contextFiles"], [".aiflow/context.compact.md"])
+            self.assertEqual(payload["maxContextFileChars"], 12000)
+            self.assertEqual(payload["contextBudget"]["includedContextChars"], len("# Compact\n"))
+
+    def test_claude_agent_context_level_can_disable_context(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            cwd = Path(tmp)
+            (cwd / ".aiflow").mkdir()
+            (cwd / ".aiflow" / "context.compact.md").write_text("# Compact\n", encoding="utf-8")
+            result = run_aiflow(
+                cwd,
+                "claude-agent",
+                "run",
+                "small",
+                "task",
+                "--model",
+                "test-model",
+                "--dry-run",
+                "--context-level",
+                "none",
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            payload = json.loads(result.stdout)
+            self.assertEqual(payload["contextLevel"], "none")
+            self.assertEqual(payload["contextFiles"], [])
+            self.assertEqual(payload["contextBudget"]["includedContextChars"], 0)
+
+    def test_claude_agent_review_diff_defaults_to_rules_context(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            cwd = Path(tmp)
+            (cwd / ".aiflow").mkdir()
+            (cwd / ".aiflow" / "context.compact.md").write_text("# Compact\n", encoding="utf-8")
+            (cwd / "AGENTS.md").write_text("# Rules\n", encoding="utf-8")
+            result = run_aiflow(cwd, "claude-agent", "review-diff", "--model", "test-model", "--dry-run")
+            self.assertEqual(result.returncode, 0, result.stderr)
+            payload = json.loads(result.stdout)
+            self.assertEqual(payload["contextLevel"], "rules")
+            self.assertEqual(payload["contextFiles"], ["AGENTS.md"])
+            self.assertEqual(payload["maxDiffChars"], 40000)
+
+    def test_claude_agent_compact_dry_run_uses_compression_sources(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            cwd = Path(tmp)
+            (cwd / ".aiflow").mkdir()
+            (cwd / ".aiflow" / "context.compact.md").write_text("# Old compact\n", encoding="utf-8")
+            (cwd / ".aiflow" / "context.md").write_text("# Full context\n", encoding="utf-8")
+            (cwd / ".aiflow" / "memory.md").write_text("# Memory\n", encoding="utf-8")
+            result = run_aiflow(cwd, "claude-agent", "compact", "--model", "test-model", "--dry-run")
+            self.assertEqual(result.returncode, 0, result.stderr)
+            payload = json.loads(result.stdout)
+            self.assertEqual(payload["contextFiles"], [".aiflow/context.md", ".aiflow/memory.md"])
+            self.assertEqual(payload["writeResultTo"], str(cwd / ".aiflow" / "context.compact.md"))
+            self.assertIn("concise compact context", payload["prompt"])
 
     def test_claude_agent_run_dry_run_includes_task_edit_scope_and_verify_after(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -560,6 +614,21 @@ class CliSmokeTests(unittest.TestCase):
             self.assertEqual(result.returncode, 2)
             self.assertIn("--edit-scope requires --allow-edit", result.stdout)
 
+    def test_claude_agent_allow_edit_requires_edit_scope(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            result = run_aiflow(
+                Path(tmp),
+                "claude-agent",
+                "run",
+                "update",
+                "--model",
+                "test-model",
+                "--dry-run",
+                "--allow-edit",
+            )
+            self.assertEqual(result.returncode, 2)
+            self.assertIn("--allow-edit requires at least one --edit-scope", result.stdout)
+
     def test_claude_agent_run_requires_configured_alias_model(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             cwd = Path(tmp)
@@ -587,7 +656,11 @@ class CliSmokeTests(unittest.TestCase):
 export async function* query({ options }) {
   yield {
     type: "result",
-    result: String(options.maxBudgetUsd),
+    result: JSON.stringify({
+      budget: options.maxBudgetUsd,
+      settingSources: options.settingSources,
+      baseUrl: options.settings?.env?.ANTHROPIC_BASE_URL
+    }),
     total_cost_usd: 0,
     usage: {}
   };
@@ -611,6 +684,7 @@ export async function* query({ options }) {
   "allowedTools": ["Read"],
   "disallowedTools": ["Write"],
   "permissionMode": "dontAsk",
+  "maxContextFileChars": 4,
   "maxTurns": 1,
   "maxBudgetUsd": 0.2
 }
@@ -626,9 +700,13 @@ export async function* query({ options }) {
                 cwd=cwd,
                 text=True,
                 capture_output=True,
+                env={**os.environ, "ANTHROPIC_BASE_URL": "https://example.invalid/anthropic"},
             )
             self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertEqual((output_dir / "result.md").read_text(encoding="utf-8"), "0.2\n")
+            output = json.loads((output_dir / "result.md").read_text(encoding="utf-8"))
+            self.assertEqual(output["budget"], 0.2)
+            self.assertEqual(output["settingSources"], [])
+            self.assertEqual(output["baseUrl"], "https://example.invalid/anthropic")
 
     def test_claude_agent_local_env_maps_auth_token_and_base_url(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -672,6 +750,30 @@ MINIMAX_BASE_URL = "https://example.invalid/anthropic"
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertIn("test-model", result.stdout)
             self.assertIn("total_cost_usd", result.stdout)
+
+    def test_claude_agent_usage_summary_aggregates_records(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            cwd = Path(tmp)
+            usage_dir = cwd / ".aiflow" / "claude-agent"
+            usage_dir.mkdir(parents=True)
+            (usage_dir / "usage.jsonl").write_text(
+                "\n".join(
+                    [
+                        '{"task":"run","model":"small","input_tokens":10,"output_tokens":2,"total_cost_usd":0.01}',
+                        '{"task":"run","model":"small","input_tokens":20,"output_tokens":3,"total_cost_usd":0.02}',
+                        '{"task":"review-diff","model":"standard","input_tokens":30,"output_tokens":4,"total_cost_usd":0.03}',
+                    ]
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            result = run_aiflow(cwd, "claude-agent", "usage", "--summary")
+            self.assertEqual(result.returncode, 0, result.stderr)
+            payload = json.loads(result.stdout)
+            self.assertEqual(payload["count"], 3)
+            self.assertEqual(payload["total_cost_usd"], 0.06)
+            self.assertEqual(payload["by_task"]["run"]["count"], 2)
+            self.assertEqual(payload["most_expensive"]["task"], "review-diff")
 
     def test_agents_init_plan_status_and_handoff(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

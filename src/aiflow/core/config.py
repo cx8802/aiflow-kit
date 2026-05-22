@@ -37,6 +37,10 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "max_turns": 8,
         "max_budget_usd": 0.20,
         "timeout_seconds": 300,
+        "context_level": "compact",
+        "max_context_file_chars": 12_000,
+        "max_diff_chars": 40_000,
+        "include_memory_context": False,
         "runs_dir": ".aiflow/claude-agent/runs",
         "sessions_dir": ".aiflow/claude-agent/sessions",
         "usage_file": ".aiflow/claude-agent/usage.jsonl",
@@ -200,6 +204,7 @@ def validate_config(config: dict[str, Any]) -> list[str]:
             "proxy_mode",
             "overseas_proxy",
             "permission_mode",
+            "context_level",
             "runs_dir",
             "sessions_dir",
             "usage_file",
@@ -212,6 +217,11 @@ def validate_config(config: dict[str, Any]) -> list[str]:
         require_int(claude_agent, "max_turns", "claude_agent.max_turns", errors)
         require_number(claude_agent, "max_budget_usd", "claude_agent.max_budget_usd", errors)
         require_int(claude_agent, "timeout_seconds", "claude_agent.timeout_seconds", errors)
+        require_int(claude_agent, "max_context_file_chars", "claude_agent.max_context_file_chars", errors)
+        require_int(claude_agent, "max_diff_chars", "claude_agent.max_diff_chars", errors)
+        require_bool(claude_agent, "include_memory_context", "claude_agent.include_memory_context", errors)
+        if str(claude_agent.get("context_level", "")).lower() not in {"none", "rules", "compact", "full"}:
+            errors.append("claude_agent.context_level must be one of: none, rules, compact, full")
 
     frontend = config.get("frontend", {})
     if not isinstance(frontend, dict):

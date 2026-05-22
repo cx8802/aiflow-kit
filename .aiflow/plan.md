@@ -1,39 +1,44 @@
 # Plan
 
-Add WSL and SSH operation commands to aiflow-kit.
+Reduce default aiflow Claude Agent SDK context payload while keeping project-local MiniMax environment settings isolated from user-level Claude Code settings.
 
 ## Goal
 
-- Provide `aiflow wsl` commands for WSL availability checks, distro listing, command execution, and path conversion.
-- Provide `aiflow ssh` commands for project-level SSH profiles and remote command execution.
-- Keep secrets out of tracked config by requiring `.aiflow/*.local.toml` or environment variable names.
+- Keep `aiflow claude-agent` isolated from `~/.claude/settings.json` provider/model env.
+- Continue using `.aiflow/claude-agent.local.toml` for project-local secrets and model environment.
+- Prefer compact context over full context to reduce token usage.
+- Keep Claude Agent default context small enough that aiflow remains token-saving.
+- Keep explicit compact commands able to read richer source context and produce `.aiflow/context.compact.md`.
+- Preserve read-only default permissions and existing run artifacts.
 
 ## Non-goals
 
-- Do not implement an interactive terminal UI.
-- Do not store SSH passwords or private key contents in tracked files.
-- Do not require WSL or SSH to be installed for unit tests.
+- Do not modify user-global Claude Code settings.
+- Do not commit secrets.
+- Do not change default tool permissions.
 
 ## Impact Scope
 
-- `src/aiflow/cli.py`
-- `src/aiflow/commands/wsl.py`
-- `src/aiflow/commands/ssh.py`
-- `src/aiflow/core/remote.py`
+- `node/claude-agent-runner/runner.mjs`
+- `src/aiflow/core/claude_agent.py`
+- `src/aiflow/core/config.py`
+- `src/aiflow/assets/templates/config.toml`
 - `tests/test_cli_smoke.py`
-- `docs/README.md`
 
 ## Steps
 
-1. Done: Read project context and existing command/profile patterns.
-2. Done: Implement WSL command helpers and CLI parser.
-3. Done: Implement SSH profile storage, redaction, dry-run, and execution.
-4. Done: Register commands and add smoke tests.
-5. Done: Update docs and run verification.
+1. Done: Reproduce MiniMax run being overridden by user-level deepseek settings.
+2. Done: Pass isolated SDK settings/env from the runner.
+3. Done: Add a runner smoke test for `settingSources` and env propagation.
+4. Done: Re-test real MiniMax run and project verification.
+5. Done: Stop sending full `.aiflow/context.md` when compact context exists.
+6. Done: Add strict default context caps and disable memory injection by default.
+7. Done: Route `claude-agent compact` through compression source files instead of normal small context.
+8. Done: Add explicit context levels, dry-run context budget, usage summaries, and strict edit scope.
+9. Done: Add configurable diff truncation for review-diff prompts.
 
 ## Verification
 
-- `python -m unittest tests.test_cli_smoke.CliSmokeTests.test_wsl_*`
-- `python -m unittest tests.test_cli_smoke.CliSmokeTests.test_ssh_*`
-- `python -m unittest discover -s tests`
-- `git diff --check`
+- `python -m unittest tests.test_cli_smoke.CliSmokeTests.test_claude_agent_runner_passes_budget_to_sdk`
+- `scripts\aiflow-dev.bat claude-agent run "Return exactly: minimax model works." --model small`
+- `scripts\aiflow-dev.bat verify --auto --continue-on-error`

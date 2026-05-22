@@ -119,14 +119,20 @@ def make_run_id(task: str) -> str:
     return f"{stamp}-{safe_task}"
 
 
-def default_context_files(root: Path) -> list[str]:
-    candidates = [
-        ".aiflow/context.compact.md",
-        ".aiflow/context.md",
-        ".aiflow/memory.md",
-        "AGENTS.md",
-        "CLAUDE.md",
-    ]
+def default_context_files(root: Path, config: dict[str, Any] | None = None, *, level: str | None = None) -> list[str]:
+    config = config or {}
+    selected = (level or str(config.get("context_level", "compact"))).lower()
+    if selected == "none":
+        candidates: list[str] = []
+    elif selected == "rules":
+        candidates = ["AGENTS.md", "CLAUDE.md"]
+    elif selected == "full":
+        candidates = [".aiflow/context.md", "AGENTS.md", "CLAUDE.md"]
+    else:
+        context = ".aiflow/context.compact.md" if (root / ".aiflow/context.compact.md").exists() else ".aiflow/context.md"
+        candidates = [context, "AGENTS.md", "CLAUDE.md"]
+    if bool(config.get("include_memory_context", False)) and selected not in {"none", "rules"}:
+        candidates.insert(1, ".aiflow/memory.md")
     return [relative for relative in candidates if (root / relative).exists()]
 
 

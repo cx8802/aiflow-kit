@@ -36,7 +36,13 @@ async function main() {
     maxBudgetUsd: input.maxBudgetUsd,
     permissionMode: input.permissionMode,
     allowedTools: input.allowedTools,
-    disallowedTools: input.disallowedTools
+    disallowedTools: input.disallowedTools,
+    env: process.env,
+    settings: {
+      env: claudeEnvironment(process.env),
+      includeCoAuthoredBy: false
+    },
+    settingSources: []
   };
   if (input.claudeCodeExecutable) {
     options.pathToClaudeCodeExecutable = input.claudeCodeExecutable;
@@ -69,6 +75,27 @@ async function main() {
   }
 }
 
+function claudeEnvironment(env) {
+  const keys = [
+    "ANTHROPIC_API_KEY",
+    "ANTHROPIC_AUTH_TOKEN",
+    "ANTHROPIC_BASE_URL",
+    "ANTHROPIC_MODEL",
+    "ANTHROPIC_DEFAULT_HAIKU_MODEL",
+    "ANTHROPIC_DEFAULT_SONNET_MODEL",
+    "ANTHROPIC_DEFAULT_OPUS_MODEL",
+    "ANTHROPIC_DEFAULT_SONNET_MODEL_NAME",
+    "ANTHROPIC_DEFAULT_OPUS_MODEL_NAME",
+    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC",
+    "API_TIMEOUT_MS",
+    "HTTP_PROXY",
+    "HTTPS_PROXY",
+    "ALL_PROXY",
+    "NO_PROXY"
+  ];
+  return Object.fromEntries(keys.filter((key) => env[key]).map((key) => [key, env[key]]));
+}
+
 async function loadSdk(packageDir) {
   const requireFromPackage = createRequire(path.join(packageDir, "package.json"));
   const sdkEntry = requireFromPackage.resolve("@anthropic-ai/claude-agent-sdk");
@@ -88,12 +115,13 @@ async function buildPrompt(input) {
   ];
 
   if (Array.isArray(input.contextFiles) && input.contextFiles.length) {
+    const maxChars = Number.isFinite(input.maxContextFileChars) ? input.maxContextFileChars : 12000;
     sections.push("## Context Files", "");
     for (const relative of input.contextFiles) {
       const filePath = path.join(input.cwd, relative);
       try {
         const content = await readFile(filePath, "utf8");
-        sections.push(`### ${relative}`, "", "```text", content.slice(0, 60000), "```", "");
+        sections.push(`### ${relative}`, "", "```text", content.slice(0, maxChars), "```", "");
       } catch {
         // Missing context files are fine.
       }

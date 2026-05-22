@@ -62,6 +62,7 @@ def configure_claude_agent_parser(sub) -> None:
 
     usage = agent_sub.add_parser("usage", help="Show recent Claude Agent SDK usage records")
     usage.add_argument("--limit", type=int, default=20, help="Maximum usage records to show")
+    usage.add_argument("--summary", action="store_true", help="Show aggregate cost/token summary")
     usage.set_defaults(func=run_claude_agent)
 
 
@@ -76,6 +77,12 @@ def add_run_args(parser, *, prompt_required: bool = True) -> None:
     parser.add_argument("--force", action="store_true", help="Run even when claude_agent.enabled is false")
     parser.add_argument("--no-proxy", action="store_true", help="Do not set 10808 proxy for SDK call")
     parser.add_argument("--max-turns", type=int, default=None, help="Override claude_agent.max_turns")
+    parser.add_argument(
+        "--context-level",
+        choices=["none", "rules", "compact", "full"],
+        default=None,
+        help="Context payload level. Default comes from claude_agent.context_level.",
+    )
 
 
 def run_claude_agent(args: Namespace) -> int:
@@ -157,6 +164,9 @@ def claude_agent_run(args: Namespace) -> int:
     if args.edit_scope and not args.allow_edit:
         print("--edit-scope requires --allow-edit")
         return 2
+    if args.allow_edit and not normalized_edit_scope(args):
+        print("--allow-edit requires at least one --edit-scope")
+        return 2
 
     env = command_env(root, config, use_proxy=should_use_proxy(config, no_proxy=args.no_proxy))
     if not args.dry_run:
@@ -176,7 +186,7 @@ def claude_agent_run(args: Namespace) -> int:
             return 1
 
     run_dir = runs_dir(root, config) / make_run_id(command)
-    prompt = build_prompt(root, command, " ".join(args.prompt), args)
+    prompt = build_prompt(root, config, command, " ".join(args.prompt), args)
     input_data = build_input(root, config, command, prompt, model, args, run_dir)
 
     if args.dry_run:
@@ -207,11 +217,11 @@ def claude_agent_run(args: Namespace) -> int:
     return result.returncode
 
 
-def build_prompt(root: Path, command: str, prompt: str, args: Namespace) -> str:
+def build_prompt(root: Path, config: dict[str, Any], command: str, prompt: str, args: Namespace) -> str:
     if command == "explore":
         base = f"Read-only exploration task: {prompt}\nReturn concise findings, risks, and relevant files."
     elif command == "review-diff":
-        diff = git_diff(root)
+        diff = git_diff(root, max_chars=int(config.get("max_diff_chars", 40000)))
         user_prompt = prompt or "Review the current git diff for bugs, risks, missing tests, and unsafe changes."
         base = f"{user_prompt}\n\n# Git Diff\n\n```diff\n{diff}\n```"
     elif command == "compact":
@@ -289,6 +299,8 @@ def build_input(
     if command == "compact":
         write_result_to = str(root / ".aiflow" / "context.compact.md")
 
+    context_files = context_files_for_command(root, config, command, args)
+    max_context_file_chars = int(config.get("max_context_file_chars", 12000))
     return {
         "cwd": str(root),
         "task": command,
@@ -300,7 +312,11 @@ def build_input(
         "outputDir": str(run_dir),
         "usageFile": str(usage_file(root, config)),
         "sessionsDir": str(sessions_dir(root, config)),
-        "contextFiles": default_context_files(root),
+        "contextLevel": context_level_for_command(config, command, args),
+        "contextFiles": context_files,
+        "maxContextFileChars": max_context_file_chars,
+        "maxDiffChars": int(config.get("max_diff_chars", 40000)),
+        "contextBudget": context_budget(root, context_files, max_context_file_chars, prompt),
         "permissionMode": str(config.get("permission_mode", "dontAsk")),
         "allowedTools": allowed_tools,
         "disallowedTools": disallowed_tools,
@@ -325,12 +341,61 @@ def normalized_edit_scope(args: Namespace) -> list[str]:
     return scope
 
 
-def git_diff(root: Path) -> str:
+def context_level_for_command(config: dict[str, Any], command: str, args: Namespace) -> str:
+    if getattr(args, "context_level", None):
+        return str(args.context_level)
+    if command == "review-diff":
+        return "rules"
+    if command == "compact":
+        return "full"
+    return str(config.get("context_level", "compact")).lower()
+
+
+def context_files_for_command(root: Path, config: dict[str, Any], command: str, args: Namespace) -> list[str]:
+    if command != "compact":
+        return default_context_files(root, config, level=context_level_for_command(config, command, args))
+    candidates = [
+        ".aiflow/context.md",
+        ".aiflow/memory.md",
+        ".aiflow/plan.md",
+        ".aiflow/verify.md",
+        ".aiflow/review.md",
+        ".aiflow/agents/status.md",
+        "AGENTS.md",
+        "CLAUDE.md",
+    ]
+    return [relative for relative in candidates if (root / relative).exists()]
+
+
+def context_budget(root: Path, context_files: list[str], max_chars: int, prompt: str) -> dict[str, Any]:
+    files = []
+    included_total = 0
+    raw_total = 0
+    for relative in context_files:
+        path = root / relative
+        try:
+            chars = len(path.read_text(encoding="utf-8"))
+        except OSError:
+            chars = 0
+        included = min(chars, max(max_chars, 0))
+        raw_total += chars
+        included_total += included
+        files.append({"path": relative, "chars": chars, "includedChars": included})
+    return {
+        "promptChars": len(prompt),
+        "maxContextFileChars": max_chars,
+        "rawContextChars": raw_total,
+        "includedContextChars": included_total,
+        "estimatedTotalChars": len(prompt) + included_total,
+        "files": files,
+    }
+
+
+def git_diff(root: Path, *, max_chars: int = 40000) -> str:
     result = subprocess.run(["git", "diff", "--", "."], cwd=root, text=True, capture_output=True)
     if result.returncode != 0:
         return result.stderr.strip()
     diff = result.stdout
-    max_chars = 120_000
     if len(diff) > max_chars:
         return diff[:max_chars] + "\n... diff truncated ..."
     return diff or "No git diff."
@@ -343,8 +408,48 @@ def claude_agent_usage(args: Namespace) -> int:
     if not entries:
         print("no claude agent usage records")
         return 0
+    if args.summary:
+        print(json.dumps(usage_summary(entries), ensure_ascii=False, indent=2))
+        return 0
     print(json.dumps(entries, ensure_ascii=False, indent=2))
     return 0
+
+
+def usage_summary(entries: list[dict[str, Any]]) -> dict[str, Any]:
+    by_task: dict[str, dict[str, float | int]] = {}
+    by_model: dict[str, dict[str, float | int]] = {}
+    total_cost = 0.0
+    total_input = 0
+    total_output = 0
+    most_expensive: dict[str, Any] | None = None
+    for entry in entries:
+        cost = float(entry.get("total_cost_usd", 0) or 0)
+        input_tokens = int(entry.get("input_tokens", 0) or 0)
+        output_tokens = int(entry.get("output_tokens", 0) or 0)
+        total_cost += cost
+        total_input += input_tokens
+        total_output += output_tokens
+        add_usage_group(by_task, str(entry.get("task", "unknown")), cost, input_tokens, output_tokens)
+        add_usage_group(by_model, str(entry.get("model", "unknown")), cost, input_tokens, output_tokens)
+        if most_expensive is None or cost > float(most_expensive.get("total_cost_usd", 0) or 0):
+            most_expensive = entry
+    return {
+        "count": len(entries),
+        "total_cost_usd": round(total_cost, 6),
+        "input_tokens": total_input,
+        "output_tokens": total_output,
+        "by_task": by_task,
+        "by_model": by_model,
+        "most_expensive": most_expensive or {},
+    }
+
+
+def add_usage_group(groups: dict[str, dict[str, float | int]], key: str, cost: float, input_tokens: int, output_tokens: int) -> None:
+    group = groups.setdefault(key, {"count": 0, "total_cost_usd": 0.0, "input_tokens": 0, "output_tokens": 0})
+    group["count"] = int(group["count"]) + 1
+    group["total_cost_usd"] = round(float(group["total_cost_usd"]) + cost, 6)
+    group["input_tokens"] = int(group["input_tokens"]) + input_tokens
+    group["output_tokens"] = int(group["output_tokens"]) + output_tokens
 
 
 def quote(value: str) -> str:
