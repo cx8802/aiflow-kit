@@ -1,36 +1,33 @@
 # Plan
 
-Update project description, publish it to Gitee, and prepare project self-recommendation.
+Create a GitHub repository and push the current project code to it.
 
 ## Goal
 
-- Align README, package metadata, and Gitee repository sidebar description.
-- Commit the description update and push it to the Gitee remote.
-- Try to complete the Gitee project self-recommendation flow; if it requires an authenticated web form, provide a ready-to-submit recommendation draft.
+- Create `aiflow-kit` under the target GitHub owner.
+- Add a GitHub remote alongside the existing Gitee `origin`.
+- Push `master` and tags to GitHub.
 
 ## Non-goals
 
-- Do not store or commit access tokens.
-- Do not include unrelated local database or docs drafts.
-- Do not create a new release tag for a description-only update.
+- Do not store GitHub tokens in files, memory, or git config.
+- Do not include unrelated untracked local files.
+- Do not change the existing Gitee remote.
 
 ## Impact Scope
 
-- `README.md`
-- `pyproject.toml`
+- GitHub repository metadata.
+- Local git remotes.
 - `.aiflow/plan.md`
-- Gitee repository metadata for `aoxianglantian/aiflow-kit`
 
 ## Steps
 
 1. Done: Read compact project context and inspect working tree.
-2. Done: Update README and package description.
-3. Done: Verify local changes.
-4. Done: Update Gitee repository description via API.
-5. Done: Commit and push to `master`.
-6. Done: Confirm Gitee self-recommendation requires the logged-in GVP web form and prepare a submission draft.
+2. Done: Check local GitHub tooling and credentials.
+3. Done: GitHub CLI is unavailable; switch to Chrome plugin and browser login.
+4. Done: Confirm `cx8802/aiflow-kit` already exists as an empty public GitHub repository.
+5. In progress: Add GitHub remote and push `master` plus tags.
 
 ## Verification
 
-- Passed: `git diff --check`
-- Passed: `scripts\aiflow-dev.bat verify --auto --continue-on-error`
+- Pending: confirm GitHub remote exists and `master` plus tags are pushed.
