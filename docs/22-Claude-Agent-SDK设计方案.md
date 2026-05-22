@@ -286,7 +286,7 @@ Python CLI 调 Node runner 时传入 JSON 文件，避免命令行参数过长�
 
 ```json
 {
-  "cwd": "D:/code_work/aiflow-kit",
+  "cwd": "<aiflow-kit目录>",
   "task": "explore-code",
   "prompt": "分析 src/aiflow/commands",
   "model": "configured-small-model",

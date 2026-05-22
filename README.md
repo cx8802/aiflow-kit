@@ -53,7 +53,7 @@ AI 编程真正麻烦的地方，通常不是“让模型写一段代码”，�
 源码方式运行：
 
 ```bat
-cd /d D:\code_work\aiflow-kit
+cd /d <aiflow-kit目录>
 set PYTHONPATH=%CD%\src;%PYTHONPATH%
 python -m aiflow --help
 ```
@@ -61,13 +61,13 @@ python -m aiflow --help
 Windows 下推荐使用仓库脚本：
 
 ```bat
-D:\code_work\aiflow-kit\scripts\aiflow-dev.bat --help
+scripts\aiflow-dev.bat --help
 ```
 
 把 `aiflow` 初始化到任意业务项目：
 
 ```bat
-cd /d D:\some-project
+cd /d <目标项目目录>
 aiflow init
 aiflow context --compact
 aiflow install-skills
@@ -86,7 +86,7 @@ aiflow review
 ## 一键安装
 
 ```bat
-D:\code_work\aiflow-kit\scripts\quick-install.bat
+scripts\quick-install.bat
 ```
 
 该脚本会：

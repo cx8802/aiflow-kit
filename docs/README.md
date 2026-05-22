@@ -27,7 +27,7 @@
 | [13-快速安装.md](13-快速安装.md) | 一键安装 Codex 用户级 Skills，并生成 Claude/Codex 插件包 |
 | [14-测试与质量检查.md](14-测试与质量检查.md) | 说明 unittest、compileall 和 CLI smoke test 的运行方式 |
 | [15-数据库连接项目级配置.md](15-数据库连接项目级配置.md) | 说明如何把数据库连接保存为项目级配置并保护 secret |
-| [16-在其他项目中安装aiflow-kit.md](16-在其他项目中安装aiflow-kit.md) | 说明 Codex/Claude 如何用 `D:\code_work\aiflow-kit` 源码路径给其他项目安装 aiflow-kit |
+| [16-在其他项目中安装aiflow-kit.md](16-在其他项目中安装aiflow-kit.md) | 说明 Codex/Claude 如何用本机 aiflow-kit 源码路径给其他项目安装 aiflow-kit |
 | [17-多Agent协作流程.md](17-多Agent协作流程.md) | 说明多 Agent 角色、任务队列、项目级 handoff 和全局 Skills 边界 |
 | [18-安装路径与环境探测.md](18-安装路径与环境探测.md) | 说明如何自动探测本机 aiflow-kit 路径、生成 `.aiflow/env.local.toml` 并渲染全局 Skills |
 | [19-配置验证与Agent状态流转.md](19-配置验证与Agent状态流转.md) | 说明 `aiflow config`、`verify --auto` 和 `agents start/done/block` |

@@ -5,7 +5,7 @@
 它的作用是让 Codex / Claude Code 在其他项目中也知道：
 
 ```text
-aiflow-kit 源码路径 = D:\code_work\aiflow-kit
+aiflow-kit 源码路径 = <aiflow-kit目录>
 ```
 
 当用户在任意项目中说：
@@ -17,9 +17,9 @@ aiflow-kit 源码路径 = D:\code_work\aiflow-kit
 agent 应该从当前项目根目录调用：
 
 ```bat
-D:\code_work\aiflow-kit\scripts\aiflow-dev.bat init
-D:\code_work\aiflow-kit\scripts\aiflow-dev.bat install-skills
-D:\code_work\aiflow-kit\scripts\aiflow-dev.bat context --compact
+%AIFLOW_KIT%\scripts\aiflow-dev.bat init
+%AIFLOW_KIT%\scripts\aiflow-dev.bat install-skills
+%AIFLOW_KIT%\scripts\aiflow-dev.bat context --compact
 ```
 
 ## 安装后生成什么
@@ -55,7 +55,7 @@ Playwright 运行时工具复用 `aiflow-kit/.tools/`，不会在目标项目里
 如果用户希望在当前 `cmd` 里直接输入 `aiflow`：
 
 ```bat
-set PATH=D:\code_work\aiflow-kit\scripts;%PATH%
+set PATH=%AIFLOW_KIT%\scripts;%PATH%
 aiflow --help
 ```
 
@@ -72,9 +72,9 @@ setx PATH ...
 在目标项目里运行：
 
 ```bat
-D:\code_work\aiflow-kit\scripts\aiflow-dev.bat doctor
-D:\code_work\aiflow-kit\scripts\aiflow-dev.bat review
-D:\code_work\aiflow-kit\scripts\aiflow-dev.bat verify --dry-run
+%AIFLOW_KIT%\scripts\aiflow-dev.bat doctor
+%AIFLOW_KIT%\scripts\aiflow-dev.bat review
+%AIFLOW_KIT%\scripts\aiflow-dev.bat verify --dry-run
 ```
 
 如果已经把 `scripts` 加入当前会话 PATH：
@@ -104,7 +104,7 @@ aiflow db add dev --type postgres --dsn "postgres://user:password@127.0.0.1:5432
 ## 给 Codex / Claude Code 的执行规则
 
 1. 先确认当前目录是目标项目根目录。
-2. 使用 `D:\code_work\aiflow-kit\scripts\aiflow-dev.bat`，不要猜测 aiflow 是否在 PATH。
+2. 使用 `%AIFLOW_KIT%\scripts\aiflow-dev.bat`，不要猜测 aiflow 是否在 PATH。
 3. 默认执行项目级安装，不做全局安装。
 4. 不复制目标项目事实到全局 Skills。
 5. 不保存数据库 secret 到 `.aiflow/databases.toml`。
@@ -121,7 +121,7 @@ aiflow db add dev --type postgres --dsn "postgres://user:password@127.0.0.1:5432
 或者：
 
 ```text
-这个项目接入 aiflow-kit，使用 D:\code_work\aiflow-kit 的源码版安装。
+这个项目接入 aiflow-kit，使用本机 aiflow-kit 源码版安装。
 ```
 
 ## 更新全局和当前项目
@@ -135,7 +135,7 @@ aiflow db add dev --type postgres --dsn "postgres://user:password@127.0.0.1:5432
 agent 应执行：
 
 ```bat
-D:\code_work\aiflow-kit\scripts\aiflow-update.bat
+%AIFLOW_KIT%\scripts\aiflow-update.bat
 ```
 
 它会同时更新：

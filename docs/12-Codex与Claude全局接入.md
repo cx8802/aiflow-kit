@@ -27,7 +27,7 @@ Codex 可以读取用户级 Skills。把通用 aiflow Skills 安装到用户级�
 命令：
 
 ```bat
-cd /d D:\code_work\aiflow-kit
+cd /d <aiflow-kit目录>
 scripts\aiflow-dev.bat install-skills --target codex-user --confirm-global --allow-global
 ```
 
@@ -62,7 +62,7 @@ Claude Code 有两种接入方式：
 快速全局接入可以先安装用户级 Skills：
 
 ```bat
-cd /d D:\code_work\aiflow-kit
+cd /d <aiflow-kit目录>
 scripts\aiflow-dev.bat install-skills --target claude-user --confirm-global --allow-global
 ```
 
@@ -75,7 +75,7 @@ scripts\aiflow-dev.bat install-skills --target claude-user --confirm-global --al
 如果要使用插件方式，再生成本地插件包：
 
 ```bat
-cd /d D:\code_work\aiflow-kit
+cd /d <aiflow-kit目录>
 scripts\aiflow-dev.bat install-skills --target claude-plugin --output .aiflow\dist\claude
 ```
 
@@ -90,7 +90,7 @@ scripts\aiflow-dev.bat install-skills --target claude-plugin --output .aiflow\di
 本地测试可以使用 Claude Code 的插件目录参数：
 
 ```bat
-claude --plugin-dir D:\code_work\aiflow-kit\.aiflow\dist\claude
+claude --plugin-dir <aiflow-kit目录>\.aiflow\dist\claude
 ```
 
 如果要长期团队分发，应通过 Claude Code 的插件安装/marketplace 机制安装这个插件包。不要把某个项目的 `CLAUDE.md` 复制到全局。
@@ -108,9 +108,9 @@ aiflow verify
 如果在其他项目中还没有 `aiflow` 命令，安装 Skill 会告诉 agent 使用源码路径：
 
 ```bat
-D:\code_work\aiflow-kit\scripts\aiflow-dev.bat init
-D:\code_work\aiflow-kit\scripts\aiflow-dev.bat install-skills
-D:\code_work\aiflow-kit\scripts\aiflow-dev.bat context
+%AIFLOW_KIT%\scripts\aiflow-dev.bat init
+%AIFLOW_KIT%\scripts\aiflow-dev.bat install-skills
+%AIFLOW_KIT%\scripts\aiflow-dev.bat context
 ```
 
 所以还需要让 `aiflow` 命令在终端可用。开发期有三种方式：
@@ -118,20 +118,20 @@ D:\code_work\aiflow-kit\scripts\aiflow-dev.bat context
 方式一：当前会话 PATH：
 
 ```bat
-set PATH=D:\code_work\aiflow-kit\scripts;%PATH%
+set PATH=%AIFLOW_KIT%\scripts;%PATH%
 aiflow --help
 ```
 
 方式二：源码版全路径：
 
 ```bat
-D:\code_work\aiflow-kit\scripts\aiflow-dev.bat --help
+%AIFLOW_KIT%\scripts\aiflow-dev.bat --help
 ```
 
 方式三：安装到 `.venv`：
 
 ```bat
-cd /d D:\code_work\aiflow-kit
+cd /d <aiflow-kit目录>
 scripts\use-project-env.bat
 python -m pip install -e .
 aiflow --help

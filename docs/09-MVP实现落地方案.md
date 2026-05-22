@@ -112,7 +112,7 @@ aiflow --help
 ## 验收命令
 
 ```bat
-cd /d D:\code_work\aiflow-kit
+cd /d <aiflow-kit目录>
 scripts\use-project-env.bat
 python -m aiflow --help
 python -m aiflow init

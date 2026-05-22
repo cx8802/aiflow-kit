@@ -1,36 +1,33 @@
 # Plan
 
-Create a GitHub repository and push the current project code to it.
+Remove machine-specific drive paths from Windows wrapper script documentation.
 
 ## Goal
 
-- Create `aiflow-kit` under the target GitHub owner.
-- Add a GitHub remote alongside the existing Gitee `origin`.
-- Push `master` and tags to GitHub.
+- Make Windows wrapper examples portable across drives and checkout locations.
+- Keep source-repo examples usable from the repository root.
+- Use a placeholder for calling the source wrapper from another project.
 
 ## Non-goals
 
-- Do not store GitHub tokens in files, memory, or git config.
-- Do not include unrelated untracked local files.
-- Do not change the existing Gitee remote.
+- Do not change wrapper script behavior.
+- Do not write user-global PATH or config.
+- Do not touch unrelated local changes.
 
 ## Impact Scope
 
-- GitHub repository metadata.
-- Local git remotes.
+- README and user-facing docs that mention the Windows wrapper path.
 - `.aiflow/plan.md`
 
 ## Steps
 
-1. Done: Read compact project context and inspect working tree.
-2. Done: Check local GitHub tooling and credentials.
-3. Done: GitHub CLI is unavailable; switch to Chrome plugin and browser login.
-4. Done: Confirm `cx8802/aiflow-kit` already exists as an empty public GitHub repository.
-5. Done: Add GitHub remote and push `master` plus tags.
+1. Done: Read compact project context.
+2. Done: Locate hard-coded local wrapper examples.
+3. Done: Replace machine-specific paths with repo-relative commands or `%AIFLOW_KIT%`.
+4. Done: Run lightweight verification.
 
 ## Verification
 
+- Passed: source-path search across README, docs, `.agents`, `src`, `AGENTS.md`, and `CLAUDE.md` returned no matches for the old local checkout path.
 - Passed: `git diff --check`
 - Passed: `scripts\aiflow-dev.bat verify --auto --continue-on-error`
-- Passed: `git push github master`
-- Passed: `git push github --tags`
