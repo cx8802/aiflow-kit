@@ -143,6 +143,7 @@ class CliSmokeTests(unittest.TestCase):
             self.assertTrue((cwd / ".agents" / "skills" / "multi-agent-orchestrator" / "SKILL.md").exists())
             self.assertTrue((cwd / ".agents" / "skills" / "frontend-design" / "SKILL.md").exists())
             self.assertTrue((cwd / ".agents" / "skills" / "playwright-verify" / "SKILL.md").exists())
+            self.assertTrue((cwd / ".agents" / "skills" / "gitee-api" / "SKILL.md").exists())
             guide = (cwd / ".agents" / "skills" / "aiflow-kit-guide" / "SKILL.md").read_text(encoding="utf-8")
             self.assertIn(str(ROOT), guide)
             self.assertNotIn("{{ AIFLOW_KIT_ROOT }}", guide)

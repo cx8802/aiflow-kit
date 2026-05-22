@@ -1,38 +1,44 @@
 # Plan
 
-Write a project README and prepare release-facing documentation.
+Release aiflow-kit v0.1.1 with the bundled Gitee operation skill.
 
 ## Goal
 
-- Add a root project README suitable for repository and package landing pages.
-- Keep the existing docs index available for detailed design documentation.
-- Point package metadata at the project README for release packaging.
-- Run repository verification before delivery.
+- Add a reusable Skill for Gitee Git and OpenAPI operations.
+- Cover releases, issues, pull requests, repository lookup, and token handling.
+- Keep secrets out of tracked files and project memory.
+- Bump package, CLI, and plugin manifest versions to `0.1.1`.
+- Verify and publish `master` plus tag `v0.1.1` to Gitee.
 
 ## Non-goals
 
-- Do not publish to PyPI, push git tags, or create a remote release.
-- Do not change runtime behavior.
-- Do not overwrite unrelated in-progress changes.
+- Do not implement a new `aiflow gitee` CLI command in this step.
+- Do not call live Gitee mutation APIs during validation.
+- Do not modify user-global skill directories unless explicitly requested.
+- Do not include unrelated existing docs/database local changes in the release commit.
 
 ## Impact Scope
 
-- `README.md`
+- `src/aiflow/assets/skills/gitee-api/SKILL.md`
+- `src/aiflow/__init__.py`
+- `src/aiflow/commands/install_skills.py`
 - `pyproject.toml`
+- `tests/test_cli_smoke.py`
 - `.aiflow/plan.md`
 
 ## Steps
 
-1. Done: Read compact project context, project rules, package metadata, and CLI entry points.
-2. Done: Draft root README with overview, install, quick start, commands, boundaries, docs, and release checks.
-3. Done: Update package metadata to use the root README.
-4. Done: Run verification and review checks.
-5. Done: Run local wheel build as a release packaging sanity check.
+1. Done: Read compact context, project rules, skill creation guidance, existing bundled skills, and install tests.
+2. Done: Add the `gitee-api` bundled Skill.
+3. Done: Add/update smoke coverage for bundled skill installation.
+4. Done: Bump release versions to `0.1.1`.
+5. In progress: Run verification, build sanity check, commit, tag, and push to Gitee.
 
 ## Verification
 
-- Passed: `scripts\aiflow-dev.bat verify --auto --continue-on-error`
+- Passed: `python -m unittest tests.test_cli_smoke.CliSmokeTests.test_install_skills_defaults_to_project_codex_skills`
 - Passed: `git diff --check`
+- Passed: `scripts\aiflow-dev.bat verify --auto --continue-on-error`
 - Passed: `scripts\aiflow-dev.bat review`
-- Passed: `python -m pip wheel . -w dist`
-- Not run: `python -m build --sdist --wheel` because the active Python environment does not have the `build` module installed.
+- Passed: release verification after version bump with `scripts\aiflow-dev.bat verify --auto --continue-on-error`.
+- Passed: `python -m pip wheel . -w dist`.
