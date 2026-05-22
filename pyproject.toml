@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "aiflow-kit"
 version = "0.1.0"
 description = "Lightweight AI coding workflow CLI, templates, and skills."
-readme = "docs/README.md"
+readme = "README.md"
 requires-python = ">=3.11"
 dependencies = []
 
