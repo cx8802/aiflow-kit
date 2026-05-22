@@ -27,8 +27,8 @@ Update project description, publish it to Gitee, and prepare project self-recomm
 2. Done: Update README and package description.
 3. Done: Verify local changes.
 4. Done: Update Gitee repository description via API.
-5. In progress: Commit and push to `master`.
-6. Pending: Attempt Gitee self-recommendation or provide a submission draft.
+5. Done: Commit and push to `master`.
+6. Done: Confirm Gitee self-recommendation requires the logged-in GVP web form and prepare a submission draft.
 
 ## Verification
 
