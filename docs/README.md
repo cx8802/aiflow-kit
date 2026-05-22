@@ -36,6 +36,7 @@
 | [22-Claude-Agent-SDK设计方案.md](22-Claude-Agent-SDK设计方案.md) | 说明 Node + Claude Agent SDK 集成、自定义 API/模型配置、权限和 token 节省策略 |
 | [23-浏览器伴随插件.md](23-浏览器伴随插件.md) | 说明 Chrome/Edge 浏览器伴随插件、localhost bridge、鼠标选元素和项目级网页上下文落盘 |
 | [24-WSL与SSH操作.md](24-WSL与SSH操作.md) | 说明 `aiflow wsl` 与 `aiflow ssh` 的项目级操作命令、profile 配置和 secret 边界 |
+| [25-配置界面技术路线.md](25-配置界面技术路线.md) | 比较 React Web 控制台与 Tauri 桌面端路线，建议先做可迁移的 React 配置台 |
 
 ## 辅助安装文档
 

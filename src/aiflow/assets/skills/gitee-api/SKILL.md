@@ -68,7 +68,27 @@ Invoke-RestMethod -Method Get -Uri "https://gitee.com/api/v5/user?access_token=$
 
 If `GITEE_ACCESS_TOKEN` is missing and an API mutation is required, ask the user to provide or configure a token. Do not guess or search local files for secrets.
 
+## API Reference
+
+For endpoint tables, required fields, and request examples, read [references/api-reference.md](references/api-reference.md) when the task needs direct Gitee OpenAPI calls beyond simple Git pushes or `aiflow forge release`.
+
 ## Common Workflows
+
+### Preferred aiflow Automation
+
+Use the local automation command when available:
+
+```bat
+aiflow forge detect
+aiflow forge release create --provider gitee --repo <owner>/<repo> --tag vX.Y.Z --name vX.Y.Z --notes "Release notes"
+aiflow forge release get --provider gitee --repo <owner>/<repo> --tag vX.Y.Z
+```
+
+For a source checkout where `aiflow` is not on `PATH`, use:
+
+```bat
+{{ AIFLOW_DEV_BAT }} forge detect
+```
 
 ### Publish Git Branch And Tag
 
@@ -89,32 +109,21 @@ git push origin vX.Y.Z
 
 ### Create A Gitee Release
 
-Use this after the tag exists on Gitee. Prefer `multipart/form-data` or form fields because many Gitee v5 endpoints document form parameters.
+Use this after the tag exists on Gitee. Prefer `aiflow forge release create`; when calling the API directly, send JSON with `snake_case` fields and OAuth bearer auth.
 
 ```powershell
 $token = $env:GITEE_ACCESS_TOKEN
 $owner = "<owner>"
 $repo = "<repo>"
+$headers = @{ Authorization = "Bearer $token" }
 $body = @{
-  access_token = $token
   tag_name = "vX.Y.Z"
+  target_commitish = "master"
   name = "vX.Y.Z"
   body = "Release notes"
-  prerelease = "false"
-}
-Invoke-RestMethod -Method Post -Uri "https://gitee.com/api/v5/repos/$owner/$repo/releases" -Form $body
-```
-
-If the endpoint rejects `-Form` in the current PowerShell version, use `curl.exe -F` instead:
-
-```bat
-curl.exe -sS -X POST ^
-  -F "access_token=%GITEE_ACCESS_TOKEN%" ^
-  -F "tag_name=vX.Y.Z" ^
-  -F "name=vX.Y.Z" ^
-  -F "body=Release notes" ^
-  -F "prerelease=false" ^
-  "https://gitee.com/api/v5/repos/<owner>/<repo>/releases"
+  prerelease = $false
+} | ConvertTo-Json -Compress
+Invoke-RestMethod -Method Post -Uri "https://gitee.com/api/v5/repos/$owner/$repo/releases" -Headers $headers -Body $body -ContentType "application/json"
 ```
 
 ### List Or Inspect Releases

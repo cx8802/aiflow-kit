@@ -12,6 +12,7 @@ from .commands.context import run_context
 from .commands.db import configure_db_parser
 from .commands.doctor import run_doctor
 from .commands.env import configure_env_parser
+from .commands.forge import configure_forge_parser
 from .commands.frontend import configure_frontend_parser
 from .commands.init import run_init
 from .commands.install_skills import run_install_skills
@@ -82,6 +83,7 @@ def build_parser() -> argparse.ArgumentParser:
     configure_config_parser(sub)
     configure_db_parser(sub)
     configure_env_parser(sub)
+    configure_forge_parser(sub)
     configure_frontend_parser(sub)
     configure_memory_parser(sub)
     configure_nacos_parser(sub)

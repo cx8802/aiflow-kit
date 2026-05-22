@@ -144,6 +144,9 @@ class CliSmokeTests(unittest.TestCase):
             self.assertTrue((cwd / ".agents" / "skills" / "frontend-design" / "SKILL.md").exists())
             self.assertTrue((cwd / ".agents" / "skills" / "playwright-verify" / "SKILL.md").exists())
             self.assertTrue((cwd / ".agents" / "skills" / "gitee-api" / "SKILL.md").exists())
+            self.assertTrue((cwd / ".agents" / "skills" / "github-api" / "SKILL.md").exists())
+            self.assertTrue((cwd / ".agents" / "skills" / "gitee-api" / "references" / "api-reference.md").exists())
+            self.assertTrue((cwd / ".agents" / "skills" / "github-api" / "references" / "api-reference.md").exists())
             guide = (cwd / ".agents" / "skills" / "aiflow-kit-guide" / "SKILL.md").read_text(encoding="utf-8")
             self.assertIn(str(ROOT), guide)
             self.assertNotIn("{{ AIFLOW_KIT_ROOT }}", guide)
@@ -897,6 +900,197 @@ test = "python --version"
             result = run_aiflow(cwd, "install-skills", "--target", "codex-user", env={"USERPROFILE": str(fake_home)})
             self.assertEqual(result.returncode, 2)
             self.assertIn("--confirm-global", result.stdout)
+
+    def test_forge_detects_gitee_and_github_remotes(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            cwd = Path(tmp)
+            subprocess.run(["git", "init"], cwd=cwd, text=True, capture_output=True)
+            subprocess.run(["git", "remote", "add", "origin", "https://gitee.com/acme/demo.git"], cwd=cwd, text=True, capture_output=True)
+
+            gitee = run_aiflow(cwd, "forge", "detect", "--format", "json")
+            self.assertEqual(gitee.returncode, 0, gitee.stderr)
+            gitee_payload = json.loads(gitee.stdout)
+            self.assertEqual(gitee_payload["provider"], "gitee")
+            self.assertEqual(gitee_payload["owner"], "acme")
+            self.assertEqual(gitee_payload["repo"], "demo")
+
+            subprocess.run(["git", "remote", "set-url", "origin", "git@github.com:octo/hello.git"], cwd=cwd, text=True, capture_output=True)
+            github = run_aiflow(cwd, "forge", "detect", "--format", "json")
+            self.assertEqual(github.returncode, 0, github.stderr)
+            github_payload = json.loads(github.stdout)
+            self.assertEqual(github_payload["provider"], "github")
+            self.assertEqual(github_payload["owner"], "octo")
+            self.assertEqual(github_payload["repo"], "hello")
+
+    def test_forge_release_create_dry_run_redacts_token_and_builds_gitee_request(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            cwd = Path(tmp)
+            result = run_aiflow(
+                cwd,
+                "forge",
+                "release",
+                "create",
+                "--provider",
+                "gitee",
+                "--repo",
+                "acme/demo",
+                "--tag",
+                "v1.2.3",
+                "--name",
+                "v1.2.3",
+                "--notes",
+                "Release notes",
+                "--target",
+                "master",
+                "--dry-run",
+                env={"GITEE_ACCESS_TOKEN": "secret-token"},
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            payload = json.loads(result.stdout)
+            self.assertEqual(payload["provider"], "gitee")
+            self.assertEqual(payload["method"], "POST")
+            self.assertIn("/repos/acme/demo/releases", payload["url"])
+            self.assertEqual(payload["body"]["tag_name"], "v1.2.3")
+            self.assertEqual(payload["body"]["target_commitish"], "master")
+            self.assertEqual(payload["headers"]["Authorization"], "***")
+            self.assertNotIn("secret-token", result.stdout)
+
+    def test_forge_release_create_requires_token_without_dry_run(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            cwd = Path(tmp)
+            result = run_aiflow(
+                cwd,
+                "forge",
+                "release",
+                "create",
+                "--provider",
+                "github",
+                "--repo",
+                "acme/demo",
+                "--tag",
+                "v1.2.3",
+                "--name",
+                "v1.2.3",
+                "--notes",
+                "Release notes",
+            )
+            self.assertEqual(result.returncode, 2)
+            self.assertIn("Missing token environment variable", result.stdout)
+            self.assertIn("GITHUB_TOKEN", result.stdout)
+
+    def test_forge_release_create_posts_to_mocked_gitee_api(self) -> None:
+        requests: list[dict[str, object]] = []
+
+        class ForgeHandler(BaseHTTPRequestHandler):
+            def do_POST(self) -> None:
+                length = int(self.headers.get("Content-Length", "0"))
+                body = json.loads(self.rfile.read(length).decode("utf-8"))
+                requests.append({"path": self.path, "auth": self.headers.get("Authorization"), "body": body})
+                self.send_response(201)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"id": 42, "tag_name": body["tag_name"], "name": body["name"]}).encode("utf-8"))
+
+            def log_message(self, format: str, *args: object) -> None:
+                return
+
+        server = HTTPServer(("127.0.0.1", 0), ForgeHandler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            with tempfile.TemporaryDirectory() as tmp:
+                cwd = Path(tmp)
+                result = run_aiflow(
+                    cwd,
+                    "forge",
+                    "release",
+                    "create",
+                    "--provider",
+                    "gitee",
+                    "--repo",
+                    "acme/demo",
+                    "--tag",
+                    "v1.2.3",
+                    "--name",
+                    "v1.2.3",
+                    "--notes",
+                    "Release notes",
+                    "--api-base-url",
+                    f"http://127.0.0.1:{server.server_port}",
+                    env={"GITEE_ACCESS_TOKEN": "secret-token"},
+                )
+                self.assertEqual(result.returncode, 0, result.stderr)
+                response = json.loads(result.stdout)
+                self.assertEqual(response["id"], 42)
+                self.assertEqual(requests[0]["path"], "/repos/acme/demo/releases")
+                self.assertEqual(requests[0]["auth"], "Bearer secret-token")
+                self.assertEqual(requests[0]["body"]["tag_name"], "v1.2.3")
+                self.assertEqual(requests[0]["body"]["body"], "Release notes")
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=5)
+
+    def test_forge_release_create_posts_to_mocked_github_api(self) -> None:
+        requests: list[dict[str, object]] = []
+
+        class ForgeHandler(BaseHTTPRequestHandler):
+            def do_POST(self) -> None:
+                length = int(self.headers.get("Content-Length", "0"))
+                body = json.loads(self.rfile.read(length).decode("utf-8"))
+                requests.append(
+                    {
+                        "path": self.path,
+                        "auth": self.headers.get("Authorization"),
+                        "api_version": self.headers.get("X-GitHub-Api-Version"),
+                        "body": body,
+                    }
+                )
+                self.send_response(201)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"id": 99, "tag_name": body["tag_name"], "name": body["name"]}).encode("utf-8"))
+
+            def log_message(self, format: str, *args: object) -> None:
+                return
+
+        server = HTTPServer(("127.0.0.1", 0), ForgeHandler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            with tempfile.TemporaryDirectory() as tmp:
+                cwd = Path(tmp)
+                result = run_aiflow(
+                    cwd,
+                    "forge",
+                    "release",
+                    "create",
+                    "--provider",
+                    "github",
+                    "--repo",
+                    "acme/demo",
+                    "--tag",
+                    "v1.2.3",
+                    "--name",
+                    "v1.2.3",
+                    "--notes",
+                    "Release notes",
+                    "--api-base-url",
+                    f"http://127.0.0.1:{server.server_port}",
+                    env={"GITHUB_TOKEN": "secret-token"},
+                )
+                self.assertEqual(result.returncode, 0, result.stderr)
+                response = json.loads(result.stdout)
+                self.assertEqual(response["id"], 99)
+                self.assertEqual(requests[0]["path"], "/repos/acme/demo/releases")
+                self.assertEqual(requests[0]["auth"], "Bearer secret-token")
+                self.assertEqual(requests[0]["api_version"], "2022-11-28")
+                self.assertEqual(requests[0]["body"]["tag_name"], "v1.2.3")
+                self.assertEqual(requests[0]["body"]["body"], "Release notes")
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=5)
 
     def test_db_add_list_show_and_sqlite_test(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
