@@ -26,8 +26,11 @@ Create a GitHub repository and push the current project code to it.
 2. Done: Check local GitHub tooling and credentials.
 3. Done: GitHub CLI is unavailable; switch to Chrome plugin and browser login.
 4. Done: Confirm `cx8802/aiflow-kit` already exists as an empty public GitHub repository.
-5. In progress: Add GitHub remote and push `master` plus tags.
+5. Done: Add GitHub remote and push `master` plus tags.
 
 ## Verification
 
-- Pending: confirm GitHub remote exists and `master` plus tags are pushed.
+- Passed: `git diff --check`
+- Passed: `scripts\aiflow-dev.bat verify --auto --continue-on-error`
+- Passed: `git push github master`
+- Passed: `git push github --tags`
