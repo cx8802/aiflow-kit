@@ -73,4 +73,4 @@ Tighten the boundary between updating aiflow-kit itself and installing aiflow-ki
 - Passed: `git diff --check`
 - Passed: `scripts\aiflow-dev.bat verify --auto --continue-on-error`
 - Passed: `scripts\aiflow-dev.bat review`
-- Reported missing Rust/Cargo: `npm.cmd run tauri -- info`
+- Passed: `npm.cmd run tauri dev` and desktop window launch after Rust toolchain detection recovered

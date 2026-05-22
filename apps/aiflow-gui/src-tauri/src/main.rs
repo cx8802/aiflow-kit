@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    appsaiflow_gui_lib::run()
+    aiflow_gui_lib::run()
 }
