@@ -1,8 +1,8 @@
 # aiflow-kit
 
-面向 Codex、Claude Code 和多 Agent 协作的 AI 编程工作流工具包。
+为 Codex、Claude Code 和多 Agent 协作提供项目上下文、Skills、验证评审与 Gitee/GitHub 自动化的 AI 编程工作流工具包。
 
-`aiflow-kit` 用一个轻量 Python CLI、一组项目模板和一套可复用 Skills，把 AI 编程里最容易失控的环节固定下来：先理解项目，再制定计划，随后编码、验证、评审、发布和沉淀记忆。它不是 Apache Airflow，也不是新的 IDE；它更像是给 AI 编程代理使用的项目级“工作流脚手架”。
+`aiflow-kit` 用一个轻量 Python CLI、一组项目模板和一套可复用 Skills，把 AI 编程里最容易失控的环节固定下来：项目理解、任务计划、编码实现、验证评审、发版自动化和项目记忆沉淀。它不是 Apache Airflow，也不是新的 IDE；它更像是给 AI 编程代理使用的项目级“工作流脚手架”。
 
 ```text
 理解项目 -> 制定计划 -> 编码实现 -> 验证结果 -> 评审交付 -> 发布复盘
@@ -13,7 +13,7 @@
 适合放到 Gitee 仓库侧边栏的简介：
 
 ```text
-面向 Codex、Claude Code 和多 Agent 协作的 AI 编程工作流 CLI、项目模板与 Skills 工具包。
+AI 编程工作流工具包：为 Codex/Claude Code 提供项目上下文、Skills、验证评审、多 Agent 协作与 Gitee/GitHub 自动化。
 ```
 
 推荐标签：
