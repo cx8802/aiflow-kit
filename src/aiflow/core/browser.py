@@ -14,7 +14,7 @@ from .markdown import now_stamp
 
 
 CAPTURE_TYPES = {"page", "selection"}
-AUTOMATION_ACTIONS = {"extract", "click", "fill", "wait", "open"}
+AUTOMATION_ACTIONS = {"snapshot", "extract", "click", "fill", "scroll", "wait", "open"}
 EXTENSION_ORIGIN_PREFIXES = ("chrome-extension://", "edge-extension://")
 SENSITIVE_QUERY_KEYS = {"token", "access_token", "auth", "authorization", "key", "api_key", "secret", "password", "session", "jwt"}
 
@@ -231,6 +231,8 @@ def normalize_automation_steps(steps: list[dict[str, str]]) -> list[dict[str, st
                 raise CaptureError("wait step must be between 0 and 60000 milliseconds")
             value = str(delay)
             selector = ""
+        if action == "scroll" and not value:
+            value = "down"
         normalized.append({"action": action, "selector": selector, "value": value})
     return normalized
 

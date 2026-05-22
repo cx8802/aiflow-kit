@@ -60,7 +60,7 @@ def configure_browser_parser(sub) -> None:
         "--step",
         action="append",
         required=True,
-        help="Step as action;;selector;;value. Supported actions: open, extract, click, fill, wait.",
+        help="Step as action;;selector;;value. Supported actions: open, snapshot, extract, click, fill, scroll, wait.",
     )
     automate.add_argument("--note", default="", help="Optional job note")
     automate.set_defaults(func=run_browser)

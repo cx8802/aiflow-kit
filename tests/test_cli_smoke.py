@@ -269,9 +269,13 @@ class CliSmokeTests(unittest.TestCase):
                 "--step",
                 "open;;https://example.test/search",
                 "--step",
+                "snapshot",
+                "--step",
                 "fill;;#search;;aiflow",
                 "--step",
                 "click;;button[type=submit]",
+                "--step",
+                "scroll;;;;down",
                 "--step",
                 "wait;;;;1000",
                 "--step",
@@ -284,9 +288,10 @@ class CliSmokeTests(unittest.TestCase):
             self.assertEqual(len(jobs), 1)
             payload = json.loads(jobs[0].read_text(encoding="utf-8"))
             self.assertEqual(payload["note"], "search docs")
-            self.assertEqual([step["action"] for step in payload["steps"]], ["open", "fill", "click", "wait", "extract"])
+            self.assertEqual([step["action"] for step in payload["steps"]], ["open", "snapshot", "fill", "click", "scroll", "wait", "extract"])
             self.assertEqual(payload["steps"][0]["value"], "https://example.test/search")
-            self.assertEqual(payload["steps"][3]["value"], "1000")
+            self.assertEqual(payload["steps"][4]["value"], "down")
+            self.assertEqual(payload["steps"][5]["value"], "1000")
 
     def test_browser_bridge_requires_token_and_writes_capture(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

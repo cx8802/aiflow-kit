@@ -44,7 +44,7 @@ DevTools 面板还提供：
 自动化任务由项目后台排队控制：
 
 ```bat
-aiflow browser automate --step "open;;https://example.com" --step "fill;;#search;;aiflow" --step "click;;button[type=submit]" --step "wait;;;;1000" --step "extract;;main"
+aiflow browser automate --step "open;;https://example.com" --step "snapshot" --step "fill;;#search;;aiflow" --step "click;;button[type=submit]" --step "scroll;;;;down" --step "wait;;;;1000" --step "extract;;main"
 aiflow browser serve
 ```
 
