@@ -981,6 +981,78 @@ test = "python --version"
             self.assertEqual(result.returncode, 2)
             self.assertIn("Refusing to store Nacos secrets", result.stdout)
 
+    def test_wsl_run_dry_run_builds_command(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            cwd = Path(tmp)
+            result = run_aiflow(cwd, "wsl", "run", "--distro", "Ubuntu", "--user", "dev", "--cwd", "/repo", "--dry-run", "echo", "hello")
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("wsl", result.stdout)
+            self.assertIn("--distribution", result.stdout)
+            self.assertIn("Ubuntu", result.stdout)
+            self.assertIn("--user", result.stdout)
+            self.assertIn("dev", result.stdout)
+            self.assertIn("--cd", result.stdout)
+            self.assertIn("/repo", result.stdout)
+            self.assertIn("echo", result.stdout)
+            self.assertIn("hello", result.stdout)
+
+    def test_wsl_path_dry_run_builds_command(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            cwd = Path(tmp)
+            result = run_aiflow(cwd, "wsl", "path", "--to-wsl", "--dry-run", "C:\\Users\\demo")
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("wslpath", result.stdout)
+            self.assertIn("-u", result.stdout)
+            self.assertIn("C:\\Users\\demo", result.stdout)
+
+    def test_ssh_add_list_show_and_run_dry_run(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            cwd = Path(tmp)
+            add = run_aiflow(
+                cwd,
+                "ssh",
+                "add",
+                "dev",
+                "--host",
+                "example.test",
+                "--user",
+                "deploy",
+                "--port",
+                "2222",
+                "--key-path",
+                "C:\\Users\\demo\\.ssh\\id_ed25519",
+                "--secret-local",
+                "--option",
+                "StrictHostKeyChecking=no",
+            )
+            self.assertEqual(add.returncode, 0, add.stderr)
+            self.assertTrue((cwd / ".aiflow" / "ssh.toml").exists())
+            self.assertTrue((cwd / ".aiflow" / "ssh.local.toml").exists())
+            self.assertNotIn("id_ed25519", (cwd / ".aiflow" / "ssh.toml").read_text(encoding="utf-8"))
+
+            listing = run_aiflow(cwd, "ssh", "list")
+            self.assertEqual(listing.returncode, 0, listing.stderr)
+            self.assertIn("dev: deploy@example.test:2222 + local secrets", listing.stdout)
+
+            show = run_aiflow(cwd, "ssh", "show", "dev")
+            self.assertEqual(show.returncode, 0, show.stderr)
+            self.assertIn('"key_path_local": "***"', show.stdout)
+
+            dry_run = run_aiflow(cwd, "ssh", "run", "dev", "--dry-run", "uname", "-a")
+            self.assertEqual(dry_run.returncode, 0, dry_run.stderr)
+            self.assertIn("ssh", dry_run.stdout)
+            self.assertIn("-p", dry_run.stdout)
+            self.assertIn("2222", dry_run.stdout)
+            self.assertIn("deploy@example.test", dry_run.stdout)
+            self.assertIn("uname -a", dry_run.stdout)
+
+    def test_ssh_refuses_plain_secret_without_local_file(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            cwd = Path(tmp)
+            result = run_aiflow(cwd, "ssh", "add", "dev", "--host", "example.test", "--key-path", "~/.ssh/id_ed25519")
+            self.assertEqual(result.returncode, 2)
+            self.assertIn("Refusing to store SSH secrets", result.stdout)
+
 
 if __name__ == "__main__":
     unittest.main()

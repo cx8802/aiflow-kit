@@ -19,7 +19,9 @@ from .commands.memory import configure_memory_parser
 from .commands.nacos import configure_nacos_parser
 from .commands.plan import run_plan
 from .commands.review import run_review
+from .commands.ssh import configure_ssh_parser
 from .commands.verify import run_verify
+from .commands.wsl import configure_wsl_parser
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -83,6 +85,8 @@ def build_parser() -> argparse.ArgumentParser:
     configure_frontend_parser(sub)
     configure_memory_parser(sub)
     configure_nacos_parser(sub)
+    configure_ssh_parser(sub)
+    configure_wsl_parser(sub)
 
     return parser
 
