@@ -1,5 +1,5 @@
 @echo off
-set "AIFLOW_KIT_ROOT=%~dp0.."
+set "AIFLOW_KIT_ROOT=%~dp0..\.."
 for %%I in ("%AIFLOW_KIT_ROOT%") do set "AIFLOW_KIT_ROOT=%%~fI"
 set "AIFLOW_UPDATE_PROJECT=0"
 set "AIFLOW_UPDATE_GLOBAL=0"
@@ -46,47 +46,47 @@ if not exist "%AIFLOW_KIT_ROOT%\.venv\Scripts\python.exe" (
   python -m venv "%AIFLOW_KIT_ROOT%\.venv"
   if errorlevel 1 goto failed
 )
-call "%AIFLOW_KIT_ROOT%\scripts\use-project-env.bat" quiet
+call "%AIFLOW_KIT_ROOT%\scripts\win\use-project-env.bat" quiet
 "%AIFLOW_KIT_ROOT%\.venv\Scripts\python.exe" -m pip install -e "%AIFLOW_KIT_ROOT%\packages\aiflow-cli"
 if errorlevel 1 goto failed
 
 echo.
 echo [2/11] Detect local aiflow-kit path and tool environment...
-call "%AIFLOW_KIT_ROOT%\scripts\aiflow-dev.bat" env detect
+call "%AIFLOW_KIT_ROOT%\scripts\win\aiflow-dev.bat" env detect
 if errorlevel 1 goto failed
 
 echo.
 echo [3/11] Install shared aiflow-kit frontend design and Playwright tooling...
-call "%AIFLOW_KIT_ROOT%\scripts\aiflow-dev.bat" frontend install
+call "%AIFLOW_KIT_ROOT%\scripts\win\aiflow-dev.bat" frontend install
 if errorlevel 1 goto failed
 
 echo.
 echo [4/11] Update aiflow-kit project-level skills...
 pushd "%AIFLOW_KIT_ROOT%"
-call "%AIFLOW_KIT_ROOT%\scripts\aiflow-dev.bat" install-skills --target codex-repo --force
+call "%AIFLOW_KIT_ROOT%\scripts\win\aiflow-dev.bat" install-skills --target codex-repo --force
 set "AIFLOW_LAST_ERROR=%ERRORLEVEL%"
 popd
 if not "%AIFLOW_LAST_ERROR%"=="0" goto failed
 
 echo.
 echo [5/11] Regenerate Claude Code plugin package...
-call "%AIFLOW_KIT_ROOT%\scripts\aiflow-dev.bat" install-skills --target claude-plugin --output "%AIFLOW_KIT_ROOT%\.aiflow\dist\claude" --force
+call "%AIFLOW_KIT_ROOT%\scripts\win\aiflow-dev.bat" install-skills --target claude-plugin --output "%AIFLOW_KIT_ROOT%\.aiflow\dist\claude" --force
 if errorlevel 1 goto failed
 
 echo.
 echo [6/11] Regenerate Codex plugin package...
-call "%AIFLOW_KIT_ROOT%\scripts\aiflow-dev.bat" install-skills --target codex-plugin --output "%AIFLOW_KIT_ROOT%\.aiflow\dist\codex" --force
+call "%AIFLOW_KIT_ROOT%\scripts\win\aiflow-dev.bat" install-skills --target codex-plugin --output "%AIFLOW_KIT_ROOT%\.aiflow\dist\codex" --force
 if errorlevel 1 goto failed
 
 echo.
 if not "%AIFLOW_UPDATE_GLOBAL%"=="1" goto skip_global
 echo [7/11] Update Codex user-level aiflow skills...
-call "%AIFLOW_KIT_ROOT%\scripts\aiflow-dev.bat" install-skills --target codex-user --confirm-global --allow-global --force
+call "%AIFLOW_KIT_ROOT%\scripts\win\aiflow-dev.bat" install-skills --target codex-user --confirm-global --allow-global --force
 if errorlevel 1 goto failed
 
 echo.
 echo [8/11] Update Claude Code user-level aiflow skills...
-call "%AIFLOW_KIT_ROOT%\scripts\aiflow-dev.bat" install-skills --target claude-user --confirm-global --allow-global --force
+call "%AIFLOW_KIT_ROOT%\scripts\win\aiflow-dev.bat" install-skills --target claude-user --confirm-global --allow-global --force
 if errorlevel 1 goto failed
 goto after_global
 
@@ -100,17 +100,17 @@ echo.
 if not "%AIFLOW_UPDATE_PROJECT%"=="1" goto skip_project
 
 echo [9/11] Ensure project aiflow files exist...
-call "%AIFLOW_KIT_ROOT%\scripts\aiflow-dev.bat" init
+call "%AIFLOW_KIT_ROOT%\scripts\win\aiflow-dev.bat" init
 if errorlevel 1 goto failed
 
 echo.
 echo [10/11] Update project-level skills...
-call "%AIFLOW_KIT_ROOT%\scripts\aiflow-dev.bat" install-skills --target codex-repo --force
+call "%AIFLOW_KIT_ROOT%\scripts\win\aiflow-dev.bat" install-skills --target codex-repo --force
 if errorlevel 1 goto failed
 
 echo.
 echo [11/11] Refresh project context and compact context...
-call "%AIFLOW_KIT_ROOT%\scripts\aiflow-dev.bat" context --compact
+call "%AIFLOW_KIT_ROOT%\scripts\win\aiflow-dev.bat" context --compact
 if errorlevel 1 goto failed
 goto done_project
 

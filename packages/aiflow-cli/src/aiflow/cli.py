@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import argparse
+import sys
+from argparse import Namespace
 from pathlib import Path
 
 from . import __version__
@@ -112,6 +114,22 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
+    argv_list = list(sys.argv[1:] if argv is None else argv)
+    if len(argv_list) >= 2 and argv_list[0] == "workflow" and argv_list[1] == "db":
+        return run_workflow(
+            Namespace(
+                goal=argv_list[1:],
+                no_compact=False,
+                skip_plan=False,
+                force_plan=False,
+                verify=False,
+                review=False,
+                check=False,
+                no_auto_verify=False,
+                continue_on_error=False,
+                dry_run=False,
+            )
+        )
     parser = build_parser()
-    args = parser.parse_args(argv)
+    args = parser.parse_args(argv_list)
     return int(args.func(args) or 0)

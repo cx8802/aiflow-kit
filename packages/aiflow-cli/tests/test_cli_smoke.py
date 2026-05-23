@@ -51,6 +51,19 @@ class CliSmokeTests(unittest.TestCase):
         self.assertFalse((ROOT / "src").exists())
         self.assertFalse((ROOT / "tests").exists())
 
+    def test_release_metadata_uses_non_commercial_license(self) -> None:
+        license_text = (ROOT / "LICENSE").read_text(encoding="utf-8")
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        pyproject = (PACKAGE_ROOT / "pyproject.toml").read_text(encoding="utf-8")
+        init_py = (SRC / "aiflow" / "__init__.py").read_text(encoding="utf-8")
+
+        self.assertIn("AIFLOW-KIT Non-Commercial Source License", license_text)
+        self.assertIn("Commercial use is prohibited", license_text)
+        self.assertIn("Non-commercial use only", readme)
+        self.assertIn('license = { text = "LicenseRef-AIFLOW-KIT-NC-1.0" }', pyproject)
+        self.assertIn('version = "0.1.2"', pyproject)
+        self.assertIn('__version__ = "0.1.2"', init_py)
+
     def test_init_generates_project_files_without_context(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             cwd = Path(tmp)
@@ -198,6 +211,60 @@ class CliSmokeTests(unittest.TestCase):
             self.assertIn("Ship run runtime", summary)
             self.assertIn("Verification: passed", summary)
 
+    def test_workflow_start_records_database_capabilities_and_profiles(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            cwd = Path(tmp)
+            add = run_aiflow(cwd, "db", "add", "local", "--type", "sqlite", "--path", "data/local.db")
+            self.assertEqual(add.returncode, 0, add.stderr)
+
+            result = run_aiflow(cwd, "workflow", "start", "Change data-backed feature")
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            current = (cwd / ".aiflow" / "runs" / "current").read_text(encoding="utf-8").strip()
+            run_dir = cwd / ".aiflow" / "runs" / current
+            state = json.loads((run_dir / "state.json").read_text(encoding="utf-8"))
+            self.assertEqual(state["database"]["profiles"], ["local"])
+            self.assertTrue(state["database"]["capabilities"]["profile_management"])
+            self.assertTrue(state["database"]["capabilities"]["schema_inspection"])
+            self.assertTrue(state["database"]["capabilities"]["read_query"])
+            self.assertTrue(state["database"]["capabilities"]["write_query"])
+            spec = (run_dir / "spec.md").read_text(encoding="utf-8")
+            self.assertIn("## Database Operations", spec)
+            self.assertIn("aiflow workflow db list", spec)
+            self.assertIn("aiflow workflow db query <profile> \"<sql>\"", spec)
+            self.assertIn("local", spec)
+
+    def test_workflow_db_runs_project_database_operations(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            cwd = Path(tmp)
+            add = run_aiflow(cwd, "workflow", "db", "add", "local", "--type", "sqlite", "--path", "data/local.db")
+            self.assertEqual(add.returncode, 0, add.stderr)
+
+            listing = run_aiflow(cwd, "workflow", "db", "list")
+            self.assertEqual(listing.returncode, 0, listing.stderr)
+            self.assertIn("local: sqlite", listing.stdout)
+
+            show = run_aiflow(cwd, "workflow", "db", "show", "local")
+            self.assertEqual(show.returncode, 0, show.stderr)
+            self.assertIn('"type": "sqlite"', show.stdout)
+
+            test = run_aiflow(cwd, "workflow", "db", "test", "local")
+            self.assertEqual(test.returncode, 0, test.stderr)
+            self.assertIn("sqlite ok", test.stdout)
+
+            create = run_aiflow(cwd, "workflow", "db", "query", "local", "create table demo_item (id integer primary key, name text)")
+            self.assertEqual(create.returncode, 0, create.stderr)
+            insert = run_aiflow(cwd, "workflow", "db", "query", "local", "insert into demo_item (name) values ('alpha')")
+            self.assertEqual(insert.returncode, 0, insert.stderr)
+
+            tables = run_aiflow(cwd, "workflow", "db", "tables", "local")
+            self.assertEqual(tables.returncode, 0, tables.stderr)
+            self.assertIn("sqlite tables: 1", tables.stdout)
+
+            select = run_aiflow(cwd, "workflow", "db", "query", "local", "select id, name from demo_item", "--format", "json")
+            self.assertEqual(select.returncode, 0, select.stderr)
+            self.assertIn('"name": "alpha"', select.stdout)
+
     def test_codegraph_scan_writes_code_structure_layer(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             cwd = Path(tmp)
@@ -326,7 +393,7 @@ class CliSmokeTests(unittest.TestCase):
             self.assertNotIn("{{ AIFLOW_KIT_ROOT }}", guide)
 
     def test_quick_install_defaults_to_project_local_cli_and_skills(self) -> None:
-        script = (ROOT / "scripts" / "quick-install.bat").read_text(encoding="utf-8")
+        script = (ROOT / "scripts" / "win" / "quick-install.bat").read_text(encoding="utf-8")
         self.assertIn(r'python -m venv "%AIFLOW_KIT_ROOT%\.venv"', script)
         self.assertIn(r'"%AIFLOW_KIT_ROOT%\.venv\Scripts\python.exe" -m pip install -e "%AIFLOW_KIT_ROOT%\packages\aiflow-cli"', script)
         self.assertIn("install-skills --target codex-repo --force", script)
@@ -334,9 +401,108 @@ class CliSmokeTests(unittest.TestCase):
         self.assertIn('if not "%AIFLOW_INSTALL_GLOBAL%"=="1" goto skip_global_skills', script)
         self.assertIn("--global-skills", script)
 
+    def test_cmd_launchers_enable_current_session_and_project_install(self) -> None:
+        env_script = (ROOT / "scripts" / "win" / "aiflow-env.bat").read_text(encoding="utf-8")
+        install_script = (ROOT / "scripts" / "win" / "aiflow-install.bat").read_text(encoding="utf-8")
+        self.assertIn('set "AIFLOW_KIT=', env_script)
+        self.assertIn('set "AIFLOW_KIT_ROOT=%AIFLOW_KIT%"', env_script)
+        self.assertIn('set "PATH=%AIFLOW_KIT%\\scripts\\win;%PATH%"', env_script)
+        self.assertNotIn("setx", env_script.lower())
+        self.assertIn("aiflow-dev.bat\" init", install_script)
+        self.assertIn("aiflow-dev.bat\" install-skills", install_script)
+        self.assertIn("aiflow-dev.bat\" env detect", install_script)
+        self.assertIn("aiflow-dev.bat\" context --compact", install_script)
+        self.assertIn("aiflow-dev.bat\" verify --auto --dry-run", install_script)
+        self.assertNotIn("codex-user", install_script)
+        self.assertNotIn("claude-user", install_script)
+        self.assertNotIn("setx", install_script.lower())
+
+    def test_platform_scripts_are_split_by_operating_system(self) -> None:
+        windows_scripts = [
+            "aiflow-dev.bat",
+            "aiflow-env.bat",
+            "aiflow-install.bat",
+            "aiflow-update.bat",
+            "aiflow.bat",
+            "quick-install.bat",
+            "quick-uninstall.bat",
+            "use-project-env.bat",
+        ]
+        unix_scripts = ["aiflow", "aiflow-dev.sh", "aiflow-env.sh", "aiflow-install", "aiflow-install.sh"]
+        for name in windows_scripts:
+            self.assertTrue((ROOT / "scripts" / "win" / name).exists(), name)
+            self.assertFalse((ROOT / "scripts" / name).exists(), name)
+        for name in unix_scripts:
+            self.assertTrue((ROOT / "scripts" / "mac" / name).exists(), name)
+            self.assertFalse((ROOT / "scripts" / name).exists(), name)
+
+    def test_unix_launchers_enable_current_session_and_project_install(self) -> None:
+        command_script = (ROOT / "scripts" / "mac" / "aiflow").read_text(encoding="utf-8")
+        command_install_script = (ROOT / "scripts" / "mac" / "aiflow-install").read_text(encoding="utf-8")
+        dev_script = (ROOT / "scripts" / "mac" / "aiflow-dev.sh").read_text(encoding="utf-8")
+        env_script = (ROOT / "scripts" / "mac" / "aiflow-env.sh").read_text(encoding="utf-8")
+        install_script = (ROOT / "scripts" / "mac" / "aiflow-install.sh").read_text(encoding="utf-8")
+        self.assertTrue(command_script.startswith("#!/usr/bin/env sh"))
+        self.assertTrue(command_install_script.startswith("#!/usr/bin/env sh"))
+        self.assertTrue(dev_script.startswith("#!/usr/bin/env sh"))
+        self.assertTrue(env_script.startswith("#!/usr/bin/env sh"))
+        self.assertTrue(install_script.startswith("#!/usr/bin/env sh"))
+        self.assertIn("export AIFLOW_KIT=", env_script)
+        self.assertIn("export AIFLOW_KIT_ROOT=\"$AIFLOW_KIT\"", env_script)
+        self.assertIn('export PATH="$AIFLOW_KIT/scripts/mac:$PATH"', env_script)
+        self.assertIn("The PATH entry exposes: aiflow and aiflow-install", env_script)
+        self.assertIn('PYTHONPATH="$AIFLOW_KIT_ROOT/packages/aiflow-cli/src', dev_script)
+        self.assertIn('aiflow-dev.sh" init', install_script)
+        self.assertIn('aiflow-dev.sh" install-skills', install_script)
+        self.assertIn('aiflow-dev.sh" env detect', install_script)
+        self.assertIn('aiflow-dev.sh" context --compact', install_script)
+        self.assertIn('aiflow-dev.sh" verify --auto --dry-run', install_script)
+        self.assertNotIn("codex-user", install_script)
+        self.assertNotIn("claude-user", install_script)
+        self.assertNotIn("launchctl setenv", env_script.lower())
+        self.assertNotIn("launchctl setenv", install_script.lower())
+
+    def test_aiflow_install_bat_installs_current_project_without_global_writes(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            cwd = Path(tmp)
+            result = subprocess.run(
+                ["cmd", "/c", str(ROOT / "scripts" / "win" / "aiflow-install.bat"), "--skip-rules"],
+                cwd=cwd,
+                text=True,
+                capture_output=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertTrue((cwd / ".aiflow" / "config.toml").exists())
+            self.assertTrue((cwd / ".aiflow" / "context.compact.md").exists())
+            self.assertTrue((cwd / ".aiflow" / "env.local.toml").exists())
+            self.assertTrue((cwd / ".agents" / "skills" / "aiflow-kit-installer" / "SKILL.md").exists())
+            self.assertFalse((cwd / "AGENTS.md").exists())
+            self.assertFalse((cwd / "CLAUDE.md").exists())
+            self.assertIn("aiflow project install complete", result.stdout)
+
+    def test_aiflow_install_sh_installs_current_project_without_global_writes(self) -> None:
+        if shutil.which("sh") is None:
+            self.skipTest("sh is not available")
+        with tempfile.TemporaryDirectory() as tmp:
+            cwd = Path(tmp)
+            result = subprocess.run(
+                ["sh", str(ROOT / "scripts" / "mac" / "aiflow-install.sh"), "--skip-rules"],
+                cwd=cwd,
+                text=True,
+                capture_output=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertTrue((cwd / ".aiflow" / "config.toml").exists())
+            self.assertTrue((cwd / ".aiflow" / "context.compact.md").exists())
+            self.assertTrue((cwd / ".aiflow" / "env.local.toml").exists())
+            self.assertTrue((cwd / ".agents" / "skills" / "aiflow-kit-installer" / "SKILL.md").exists())
+            self.assertFalse((cwd / "AGENTS.md").exists())
+            self.assertFalse((cwd / "CLAUDE.md").exists())
+            self.assertIn("aiflow project install complete", result.stdout)
+
     def test_update_help_describes_project_local_default_and_global_opt_in(self) -> None:
         result = subprocess.run(
-            ["cmd", "/c", str(ROOT / "scripts" / "aiflow-update.bat"), "--help"],
+            ["cmd", "/c", str(ROOT / "scripts" / "win" / "aiflow-update.bat"), "--help"],
             cwd=ROOT,
             text=True,
             capture_output=True,

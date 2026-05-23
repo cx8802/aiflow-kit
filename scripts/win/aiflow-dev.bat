@@ -1,5 +1,5 @@
 @echo off
-set "AIFLOW_KIT_ROOT=%~dp0.."
+set "AIFLOW_KIT_ROOT=%~dp0..\.."
 for %%I in ("%AIFLOW_KIT_ROOT%") do set "AIFLOW_KIT_ROOT=%%~fI"
 
 set "AIFLOW_PYTHON=%AIFLOW_KIT_ROOT%\.venv\Scripts\python.exe"

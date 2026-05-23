@@ -1,5 +1,89 @@
 # Plan
 
+## Non-Commercial v0.1.2 Release Plan
+
+### Goal
+
+- Change the project license from Apache-2.0 to a non-commercial source-available license.
+- Bump the Python CLI and plugin manifest versions to `0.1.2`.
+- Publish `v0.1.2` to both Gitee and GitHub after verification.
+
+### Non-goals
+
+- Do not add a commercial license grant.
+- Do not write tokens or credentials into repository files.
+- Do not create user-global configuration.
+
+### Impact Scope
+
+- `LICENSE`
+- `NOTICE`
+- `README.md`
+- `CHANGELOG.md`
+- `packages/aiflow-cli/pyproject.toml`
+- `packages/aiflow-cli/src/aiflow/__init__.py`
+- `packages/aiflow-cli/src/aiflow/commands/install_skills.py`
+- `packages/aiflow-cli/tests/test_cli_smoke.py`
+- `.aiflow/plan.md`
+- `.aiflow/memory.md`
+
+### Steps
+
+1. Done: Add a failing metadata test for the non-commercial license and `0.1.2` version.
+2. Done: Replace Apache metadata with the AIFLOW-KIT non-commercial license metadata.
+3. Done: Run focused tests, full smoke tests, configured verification, and diff checks.
+4. Pending: Commit, tag `v0.1.2`, push to Gitee and GitHub, and create platform releases if credentials are available.
+
+### Verification
+
+- Failed as expected: `python -m unittest packages.aiflow-cli.tests.test_cli_smoke.CliSmokeTests.test_release_metadata_uses_non_commercial_license`
+- Passed: `python -m unittest packages.aiflow-cli.tests.test_cli_smoke.CliSmokeTests.test_release_metadata_uses_non_commercial_license`
+- Passed: `python -m unittest discover -s packages\aiflow-cli\tests -p test_cli_smoke.py` (71 tests, 1 skipped because `sh` is unavailable on this Windows host)
+- Passed: `cmd /c scripts\win\aiflow-dev.bat verify --auto --continue-on-error`
+- Passed: `git diff --check`
+- Passed: `cmd /c scripts\win\aiflow-dev.bat --version`
+- Passed: `python -m pip wheel packages\aiflow-cli -w .cache\wheels`
+- Passed: `cmd /c scripts\win\aiflow-dev.bat review`
+
+## CMD Project Install Launcher Plan
+
+### Goal
+
+- Add a CMD-friendly way to use aiflow from any project directory.
+- Provide a one-command project-level installer for the current directory.
+- Keep default behavior project-local and avoid user-level global writes.
+
+### Non-goals
+
+- Do not modify permanent user PATH automatically.
+- Do not install skills into Codex/Claude user directories by default.
+- Do not overwrite existing project `AGENTS.md` or `CLAUDE.md` without explicit force behavior.
+
+### Impact Scope
+
+- `scripts/aiflow-env.bat`
+- `scripts/aiflow-install.bat`
+- `packages/aiflow-cli/tests/test_cli_smoke.py`
+- `packages/aiflow-cli/src/aiflow/assets/skills/aiflow-kit-installer/SKILL.md`
+- `README.md`
+- Install-related docs
+- `.aiflow/plan.md`
+
+### Steps
+
+1. Done: Add regression tests for the launcher scripts.
+2. Done: Implement current-session environment and install launcher scripts.
+3. Done: Update skill and docs.
+4. Done: Run focused and configured verification.
+
+### Verification
+
+- Passed: `python -m unittest discover -s packages\aiflow-cli\tests -p test_cli_smoke.py -k cmd_launchers -k aiflow_install_bat`
+- Passed: `cmd /c scripts\aiflow-env.bat`
+- Passed: `python -m unittest discover -s packages\aiflow-cli\tests -p test_cli_smoke.py`
+- Passed: `cmd /c scripts\aiflow-dev.bat verify --auto --continue-on-error`
+- Passed: `git diff --check`
+
 ## Project-Local Aiflow CLI Install Plan
 
 ### Goal
@@ -293,3 +377,107 @@ Tighten the boundary between updating aiflow-kit itself and installing aiflow-ki
 
 - Passed: `git diff --check`
 - Passed: `scripts\aiflow-dev.bat verify --auto --continue-on-error`
+
+---
+
+## Workflow Database Operations Plan
+
+### Goal
+
+- Make database operations available through the workflow entrypoint, not only through the standalone `aiflow db` command.
+- Record database capabilities and configured profiles in each workflow run so agents can recover database context from the run directory.
+
+### Non-goals
+
+- Do not add new database drivers or change existing connection/query semantics.
+- Do not store database secrets in tracked files or global configuration.
+- Do not auto-run destructive database operations.
+
+### Impact Scope
+
+- `packages/aiflow-cli/src/aiflow/cli.py`
+- `packages/aiflow-cli/src/aiflow/commands/db.py`
+- `packages/aiflow-cli/src/aiflow/commands/workflow.py`
+- `packages/aiflow-cli/src/aiflow/core/workflow.py`
+- `packages/aiflow-cli/tests/test_cli_smoke.py`
+- `README.md`
+- `docs/15-数据库连接项目级配置.md`
+- `docs/26-全链条自动化开发差距分析与优化路线.md`
+- `.aiflow/plan.md`
+
+### Steps
+
+1. Done: Add failing tests for workflow run database capability recording and `workflow db` database operations.
+2. Done: Refactor database command parser so workflow can reuse all db subcommands.
+3. Done: Add `aiflow workflow db ...` as a workflow entrypoint for `add/list/show/test/tables/query`.
+4. Done: Add database capability/profile summary to workflow run state and spec.
+5. Done: Update docs for workflow-level database operations.
+
+### Verification
+
+- Passed: focused new workflow database tests.
+- Passed: `python -m unittest discover -s packages\aiflow-cli\tests -p test_cli_smoke.py`
+- Passed: `python -m aiflow workflow db --help`
+- Passed: `cmd /c scripts\aiflow-dev.bat verify --auto --continue-on-error`
+- Passed: `git diff --check`
+
+---
+
+## Cross-Platform Workflow Launcher Plan
+
+### Goal
+
+- Make the source workflow launchers usable on Windows CMD and macOS/Linux shells.
+- Split platform-specific scripts into separate directories and remove redundant root command wrappers.
+- Preserve project-local installation behavior and avoid permanent user environment writes by default.
+
+### Non-goals
+
+- Do not add PowerShell scripts.
+- Do not write shell profiles, `setx`, or `launchctl setenv`.
+- Do not change database command semantics.
+
+### Impact Scope
+
+- `scripts/win/`
+- `scripts/mac/`
+- `packages/aiflow-cli/tests/test_cli_smoke.py`
+- `README.md`
+- `docs/11-使用方式与安装策略.md`
+- `docs/13-快速安装.md`
+- `docs/16-在其他项目中安装aiflow-kit.md`
+- `packages/aiflow-cli/src/aiflow/assets/skills/aiflow-kit-installer/SKILL.md`
+- `.aiflow/plan.md`
+
+### Steps
+
+1. Done: Add failing tests for Unix/macOS launchers and project-local install behavior.
+2. Done: Add shell launchers mirroring the Windows CMD workflow.
+3. Done: Define current-shell `aiflow` and `aiflow-install` helpers from `aiflow-env.sh`.
+4. Done: Update docs and installer skill with Windows and macOS/Linux usage.
+5. Done: Move real Windows scripts to `scripts/win/` and real macOS/Linux scripts to `scripts/mac/`.
+6. Done: Remove redundant root `scripts/` command wrappers.
+
+### Verification
+
+- Passed: focused Unix/macOS launcher tests, with execution skipped on this Windows host because `sh` is unavailable.
+- Passed: `python -m unittest discover -s packages\aiflow-cli\tests -p test_cli_smoke.py` (69 tests, 1 skipped because `sh` is unavailable on this Windows host).
+- Passed: `cmd /c scripts\aiflow-env.bat`
+- Passed: `python -m aiflow workflow db --help`
+- Passed: `cmd /c scripts\aiflow-dev.bat verify --auto --continue-on-error`
+- Passed: `git diff --check`
+- Passed: `git diff --cached --check`
+- Passed: `git diff --cached --summary` confirmed Unix/macOS scripts are staged as mode `100755`.
+- Passed: focused platform script split tests.
+- Passed: `python -m unittest discover -s packages\aiflow-cli\tests -p test_cli_smoke.py` (70 tests, 1 skipped because `sh` is unavailable on this Windows host).
+- Passed: `cmd /c scripts\aiflow-env.bat`
+- Passed: `cmd /c scripts\win\aiflow-env.bat`
+- Passed: `cmd /c scripts\win\aiflow-dev.bat --version`
+- Passed: `cmd /c scripts\aiflow-dev.bat verify --auto --continue-on-error`
+- Passed: `python -m aiflow workflow db --help`
+- Passed: `git diff --check`
+- Passed: `git diff --cached --check`
+- Passed: focused no-root-wrapper script tests after deleting redundant root scripts.
+- Passed after root wrapper deletion: `python -m unittest discover -s packages\aiflow-cli\tests -p test_cli_smoke.py` (70 tests, 1 skipped because `sh` is unavailable on this Windows host).
+- Passed after root wrapper deletion: `cmd /c scripts\win\aiflow-dev.bat verify --auto --continue-on-error`.
+- Passed after root wrapper deletion: `git diff --check` and `git diff --cached --check`.

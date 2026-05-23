@@ -1,7 +1,7 @@
 @echo off
 setlocal EnableExtensions EnableDelayedExpansion
 
-set "AIFLOW_KIT_ROOT=%~dp0.."
+set "AIFLOW_KIT_ROOT=%~dp0..\.."
 for %%I in ("%AIFLOW_KIT_ROOT%") do set "AIFLOW_KIT_ROOT=%%~fI"
 set "AIFLOW_DRY_RUN=0"
 set "AIFLOW_ASSUME_YES=0"
@@ -153,7 +153,7 @@ echo Quick uninstall cancelled.
 exit /b 0
 
 :usage
-echo Usage: scripts\quick-uninstall.bat [--yes] [--dry-run] [--keep-tools] [--keep-env]
+echo Usage: scripts\win\quick-uninstall.bat [--yes] [--dry-run] [--keep-tools] [--keep-env]
 echo.
 echo Options:
 echo   --yes, -y      Skip confirmation prompt.

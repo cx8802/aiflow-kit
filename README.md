@@ -61,17 +61,39 @@ python -m aiflow --help
 Windows 下推荐使用仓库脚本：
 
 ```bat
-scripts\aiflow-dev.bat --help
+scripts\win\aiflow-dev.bat --help
+```
+
+macOS / Linux 下使用 shell 脚本：
+
+```sh
+sh scripts/mac/aiflow-dev.sh --help
+```
+
+当前 CMD 会话里启用短命令：
+
+```bat
+call scripts\win\aiflow-env.bat
+```
+
+当前 macOS / Linux shell 会话里启用短命令：
+
+```sh
+. scripts/mac/aiflow-env.sh
 ```
 
 把 `aiflow` 初始化到任意业务项目：
 
 ```bat
 cd /d <目标项目目录>
-aiflow init
-aiflow context --compact
-aiflow install-skills
-aiflow verify --auto
+aiflow-install
+```
+
+macOS / Linux 对应为：
+
+```sh
+cd <目标项目目录>
+aiflow-install
 ```
 
 一次典型 AI 编程任务：
@@ -86,7 +108,7 @@ aiflow review
 ## 一键安装
 
 ```bat
-scripts\quick-install.bat
+scripts\win\quick-install.bat
 ```
 
 默认安装是项目级的：CLI 会安装到 `aiflow-kit\.venv`，内置 Skills 会安装到本仓库 `.agents\skills`，插件包生成到 `.aiflow\dist`。它不会写入 `%USERPROFILE%\.agents\skills` 或 `%USERPROFILE%\.claude\skills`。
@@ -94,7 +116,7 @@ scripts\quick-install.bat
 如果确认要把通用 Skills 安装到 Codex/Claude 的用户级目录，必须显式使用：
 
 ```bat
-scripts\quick-install.bat --global-skills
+scripts\win\quick-install.bat --global-skills
 ```
 
 该脚本会：
@@ -110,13 +132,13 @@ scripts\quick-install.bat --global-skills
 快速卸载已安装的 aiflow-kit 用户级 Skills、插件包和共享运行时工具：
 
 ```bat
-scripts\quick-uninstall.bat --yes
+scripts\win\quick-uninstall.bat --yes
 ```
 
 如需先预览删除范围：
 
 ```bat
-scripts\quick-uninstall.bat --dry-run
+scripts\win\quick-uninstall.bat --dry-run
 ```
 
 ## 常用命令
@@ -127,6 +149,8 @@ scripts\quick-uninstall.bat --dry-run
 | `aiflow context --compact` | 生成完整上下文和压缩上下文 |
 | `aiflow memory list` | 查看项目级记忆 |
 | `aiflow plan` | 生成或更新 `.aiflow/plan.md` |
+| `aiflow workflow start "目标"` | 创建带状态、spec、plan 和事件日志的任务 run |
+| `aiflow workflow db list` | 在当前 workflow 入口下查看数据库 profile |
 | `aiflow verify --auto` | 自动推断并运行测试/构建命令 |
 | `aiflow review` | 根据 git diff 生成交付前检查摘要 |
 | `aiflow install-skills` | 安装内置 Skills 到当前项目 |
@@ -144,8 +168,8 @@ scripts\quick-uninstall.bat --dry-run
 
 ```bat
 aiflow forge detect
-aiflow forge release create --provider gitee --repo aoxianglantian/aiflow-kit --tag v0.1.1 --name v0.1.1 --notes "Release notes"
-aiflow forge release get --provider gitee --repo aoxianglantian/aiflow-kit --tag v0.1.1
+aiflow forge release create --provider gitee --repo aoxianglantian/aiflow-kit --tag v0.1.2 --name v0.1.2 --notes "Release notes"
+aiflow forge release get --provider gitee --repo aoxianglantian/aiflow-kit --tag v0.1.2
 ```
 
 GitHub 示例：
@@ -170,7 +194,9 @@ aiflow-kit/
   packages/aiflow-cli/        Python CLI package
   packages/aiflow-cli/src/    Python CLI source
   packages/aiflow-cli/tests/  CLI smoke tests
-  scripts/                    Windows 包装与安装脚本
+  scripts/
+    win/                      Windows CMD 脚本
+    mac/                      macOS/Linux shell 脚本
   docs/                       设计文档和专题指南
   apps/aiflow-gui/            Tauri 2 desktop GUI scaffold
   extensions/browser/         Chrome/Edge 浏览器伴随插件
@@ -184,6 +210,8 @@ aiflow-kit/
 - 密钥和本地环境写入 `.aiflow/*.local.toml`，默认不提交。
 - 先验证再交付，先 dry-run 再调用远程写接口。
 - Windows 优先使用 `.bat` 辅助脚本，不依赖 PowerShell profile。
+- macOS / Linux 使用 `.sh` 和无扩展名命令包装器，默认只影响当前 shell 会话。
+- 平台脚本分开放在 `scripts/win/` 和 `scripts/mac/`，`scripts/` 根目录不放命令脚本。
 - 第一版不替代测试框架、不自动提交、不自动发 PR。
 
 ## 发版检查
@@ -215,4 +243,4 @@ python -m pip wheel packages/aiflow-cli -w dist
 
 ## 许可证
 
-本项目采用 Apache License 2.0。分发或修改时请保留 [LICENSE](LICENSE) 和 [NOTICE](NOTICE) 中的版权与作者信息。
+Non-commercial use only. 本项目采用 [AIFLOW-KIT Non-Commercial Source License](LICENSE)，允许个人、研究、教育、评估等非商用使用，Commercial use is prohibited。该许可证不是 OSI 批准的开源许可证；如需商用，请先取得单独书面授权。分发或修改时请保留 [LICENSE](LICENSE) 和 [NOTICE](NOTICE) 中的版权与作者信息。

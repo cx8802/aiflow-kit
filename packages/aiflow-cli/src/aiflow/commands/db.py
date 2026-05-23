@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from argparse import ArgumentParser
 import json
 from argparse import Namespace
 
@@ -20,6 +21,20 @@ from ..core.paths import ensure_aiflow_dir, project_root
 
 def configure_db_parser(sub) -> None:
     db = sub.add_parser("db", help="Manage project-level database connection profiles")
+    configure_db_subcommands(db)
+
+
+def build_db_parser(prog: str = "aiflow db") -> ArgumentParser:
+    parser = ArgumentParser(prog=prog, description="Manage project-level database connection profiles")
+    configure_db_subcommands(parser)
+    return parser
+
+
+def parse_db_args(tokens: list[str], prog: str = "aiflow db") -> Namespace:
+    return build_db_parser(prog).parse_args(tokens)
+
+
+def configure_db_subcommands(db) -> None:
     db_sub = db.add_subparsers(dest="db_command", required=True)
 
     add = db_sub.add_parser("add", help="Add or update a database profile")

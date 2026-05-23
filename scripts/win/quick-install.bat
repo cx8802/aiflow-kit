@@ -1,5 +1,5 @@
 @echo off
-set "AIFLOW_KIT_ROOT=%~dp0.."
+set "AIFLOW_KIT_ROOT=%~dp0..\.."
 for %%I in ("%AIFLOW_KIT_ROOT%") do set "AIFLOW_KIT_ROOT=%%~fI"
 set "AIFLOW_INSTALL_GLOBAL=0"
 
@@ -30,44 +30,44 @@ if not exist "%AIFLOW_KIT_ROOT%\.venv\Scripts\python.exe" (
   python -m venv "%AIFLOW_KIT_ROOT%\.venv"
   if errorlevel 1 goto failed
 )
-call "%AIFLOW_KIT_ROOT%\scripts\use-project-env.bat" quiet
+call "%AIFLOW_KIT_ROOT%\scripts\win\use-project-env.bat" quiet
 "%AIFLOW_KIT_ROOT%\.venv\Scripts\python.exe" -m pip install -e "%AIFLOW_KIT_ROOT%\packages\aiflow-cli"
 if errorlevel 1 goto failed
 
 echo.
 echo [2/8] Detect local aiflow-kit path and tool environment...
-call "%AIFLOW_KIT_ROOT%\scripts\aiflow-dev.bat" env detect
+call "%AIFLOW_KIT_ROOT%\scripts\win\aiflow-dev.bat" env detect
 if errorlevel 1 goto failed
 
 echo.
 echo [3/8] Install shared aiflow-kit frontend design and Playwright tooling...
-call "%AIFLOW_KIT_ROOT%\scripts\aiflow-dev.bat" frontend install
+call "%AIFLOW_KIT_ROOT%\scripts\win\aiflow-dev.bat" frontend install
 if errorlevel 1 goto failed
 
 echo.
 echo [4/8] Install bundled aiflow skills to this repository...
 pushd "%AIFLOW_KIT_ROOT%"
-call "%AIFLOW_KIT_ROOT%\scripts\aiflow-dev.bat" install-skills --target codex-repo --force
+call "%AIFLOW_KIT_ROOT%\scripts\win\aiflow-dev.bat" install-skills --target codex-repo --force
 set "AIFLOW_LAST_ERROR=%ERRORLEVEL%"
 popd
 if not "%AIFLOW_LAST_ERROR%"=="0" goto failed
 
 echo.
 echo [5/8] Generate Claude Code plugin package...
-call "%AIFLOW_KIT_ROOT%\scripts\aiflow-dev.bat" install-skills --target claude-plugin --output "%AIFLOW_KIT_ROOT%\.aiflow\dist\claude" --force
+call "%AIFLOW_KIT_ROOT%\scripts\win\aiflow-dev.bat" install-skills --target claude-plugin --output "%AIFLOW_KIT_ROOT%\.aiflow\dist\claude" --force
 if errorlevel 1 goto failed
 
 echo.
 echo [6/8] Generate Codex plugin package...
-call "%AIFLOW_KIT_ROOT%\scripts\aiflow-dev.bat" install-skills --target codex-plugin --output "%AIFLOW_KIT_ROOT%\.aiflow\dist\codex" --force
+call "%AIFLOW_KIT_ROOT%\scripts\win\aiflow-dev.bat" install-skills --target codex-plugin --output "%AIFLOW_KIT_ROOT%\.aiflow\dist\codex" --force
 if errorlevel 1 goto failed
 
 echo.
 if not "%AIFLOW_INSTALL_GLOBAL%"=="1" goto skip_global_skills
 echo [7/8] Install generic aiflow skills to user-level Codex and Claude Code...
-call "%AIFLOW_KIT_ROOT%\scripts\aiflow-dev.bat" install-skills --target codex-user --confirm-global --allow-global --force
+call "%AIFLOW_KIT_ROOT%\scripts\win\aiflow-dev.bat" install-skills --target codex-user --confirm-global --allow-global --force
 if errorlevel 1 goto failed
-call "%AIFLOW_KIT_ROOT%\scripts\aiflow-dev.bat" install-skills --target claude-user --confirm-global --allow-global --force
+call "%AIFLOW_KIT_ROOT%\scripts\win\aiflow-dev.bat" install-skills --target claude-user --confirm-global --allow-global --force
 if errorlevel 1 goto failed
 goto after_global_skills
 
@@ -78,7 +78,7 @@ echo [7/8] Skip user-level skills. Use --global-skills for explicit global insta
 
 echo.
 echo [8/8] Verify CLI wrapper...
-call "%AIFLOW_KIT_ROOT%\scripts\aiflow-dev.bat" --version
+call "%AIFLOW_KIT_ROOT%\scripts\win\aiflow-dev.bat" --version
 if errorlevel 1 goto failed
 
 echo.

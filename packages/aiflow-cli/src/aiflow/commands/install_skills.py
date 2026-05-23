@@ -159,7 +159,7 @@ def claude_manifest() -> dict:
     return {
         "name": PLUGIN_NAME,
         "description": "AI coding workflow skills for analysis, planning, implementation, verification, review, and release.",
-        "version": "0.1.1",
+        "version": "0.1.2",
         "author": {"name": PLUGIN_NAME},
     }
 
@@ -167,7 +167,7 @@ def claude_manifest() -> dict:
 def codex_manifest() -> dict:
     return {
         "name": PLUGIN_NAME,
-        "version": "0.1.1",
+        "version": "0.1.2",
         "description": "Reusable AI coding workflow skills.",
         "skills": "./skills/",
     }

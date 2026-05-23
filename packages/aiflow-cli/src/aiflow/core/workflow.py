@@ -7,6 +7,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from .databases import load_databases
 from .files import write_text_safely
 from .markdown import now_stamp
 from .paths import ensure_aiflow_dir
@@ -45,12 +46,14 @@ def create_run(root: Path, goal: str) -> WorkflowRun:
     write_run_text(run, "input.md", f"# Workflow Input\n\n{goal}\n")
     context = build_context_report(root)
     write_run_text(run, "context.md", context)
-    write_run_text(run, "spec.md", build_spec(goal))
+    database = database_summary(root)
+    write_run_text(run, "spec.md", build_spec(goal, database))
     plan = read_template("plan.md").replace("{{ goal }}", goal)
     write_run_text(run, "plan.md", plan)
     write_text_safely(root / ".aiflow" / "plan.md", plan, force=True)
 
     state = initial_state(run.run_id, goal)
+    state["database"] = database
     state["status"] = "planned"
     state["stages"]["context"] = "done"
     state["stages"]["spec"] = "done"
@@ -61,6 +64,7 @@ def create_run(root: Path, goal: str) -> WorkflowRun:
     append_event(run, "context.generated", "Generated run context")
     append_event(run, "spec.generated", "Generated task spec draft")
     append_event(run, "plan.generated", "Generated implementation plan draft")
+    append_event(run, "database.capabilities", "Recorded database workflow capabilities", profiles=database["profiles"])
     return run
 
 
@@ -135,7 +139,56 @@ def write_json(path: Path, payload: dict[str, Any]) -> None:
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8", newline="\n")
 
 
-def build_spec(goal: str) -> str:
+def database_summary(root: Path) -> dict[str, Any]:
+    config, _local = load_databases(root)
+    profiles = sorted(config.get("databases", {}))
+    return {
+        "profiles": profiles,
+        "capabilities": {
+            "profile_management": True,
+            "connection_test": True,
+            "schema_inspection": True,
+            "read_query": True,
+            "write_query": True,
+            "mongodb_find": True,
+            "mongodb_command": True,
+        },
+    }
+
+
+def build_database_section(database: dict[str, Any]) -> str:
+    profiles = database.get("profiles", [])
+    if profiles:
+        profile_text = "\n".join(f"- {name}" for name in profiles)
+    else:
+        profile_text = "- No database profiles configured yet."
+    return f"""## Database Operations
+
+This workflow can operate project-level database profiles through:
+
+- `aiflow workflow db add <name> --type <type> ...`
+- `aiflow workflow db list`
+- `aiflow workflow db show <profile>`
+- `aiflow workflow db test <profile>`
+- `aiflow workflow db tables <profile>`
+- `aiflow workflow db query <profile> "<sql>"`
+
+Supported operations include profile management, connection tests, schema/table or collection inspection, SQL read/write statements, MongoDB find queries, and MongoDB database commands.
+
+Configured profiles:
+
+{profile_text}
+
+Database safety:
+
+- Store secrets only in `.aiflow/databases.local.toml` or environment variables.
+- Do not write database secrets into global config or tracked project files.
+- Treat destructive SQL, schema changes, and production data writes as high-risk operations that need explicit user intent.
+"""
+
+
+def build_spec(goal: str, database: dict[str, Any] | None = None) -> str:
+    database = database or database_summary(Path.cwd())
     return f"""# Task Spec
 
 ## Goal
@@ -154,6 +207,8 @@ def build_spec(goal: str) -> str:
 ## Required Verification
 
 - `aiflow workflow verify`
+
+{build_database_section(database)}
 
 ## Risks
 

@@ -14,7 +14,7 @@ shift
 goto parse_args
 :args_done
 
-set "PROJECT_ROOT=%AIFLOW_SCRIPT_DIR%.."
+set "PROJECT_ROOT=%AIFLOW_SCRIPT_DIR%..\.."
 for %%I in ("%PROJECT_ROOT%") do set "PROJECT_ROOT=%%~fI"
 
 set "CACHE_ROOT=%PROJECT_ROOT%\.cache"

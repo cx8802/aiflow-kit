@@ -19,14 +19,46 @@ Use this wrapper to run the source version from any project:
 {{ AIFLOW_DEV_BAT }}
 ```
 
+On macOS / Linux, use:
+
+```sh
+sh {{ AIFLOW_KIT_ROOT }}/scripts/mac/aiflow-dev.sh
+```
+
 ## Install Into Current Project
 
-When the user says "install aiflow-kit in this project", run these commands from the target project root:
+When the user says "install aiflow-kit in this project", prefer the one-command launcher from the target project root.
+
+Windows:
+
+```bat
+{{ AIFLOW_KIT_ROOT }}\scripts\win\aiflow-install.bat
+```
+
+macOS / Linux:
+
+```sh
+sh {{ AIFLOW_KIT_ROOT }}/scripts/mac/aiflow-install.sh
+```
+
+If you need to avoid touching existing project rule files, use:
+
+```bat
+{{ AIFLOW_KIT_ROOT }}\scripts\win\aiflow-install.bat --skip-rules
+```
+
+```sh
+sh {{ AIFLOW_KIT_ROOT }}/scripts/mac/aiflow-install.sh --skip-rules
+```
+
+The launcher runs the equivalent project-level setup:
 
 ```bat
 {{ AIFLOW_DEV_BAT }} init
 {{ AIFLOW_DEV_BAT }} install-skills
+{{ AIFLOW_DEV_BAT }} env detect
 {{ AIFLOW_DEV_BAT }} context --compact
+{{ AIFLOW_DEV_BAT }} verify --auto --dry-run
 ```
 
 This writes only project-level files:
@@ -48,11 +80,20 @@ Playwright runtime packages and browser downloads stay in the shared `aiflow-kit
 If the user wants the short `aiflow` command in the current `cmd` session:
 
 ```bat
-set PATH={{ AIFLOW_SCRIPTS_DIR }};%PATH%
+call {{ AIFLOW_KIT_ROOT }}\scripts\win\aiflow-env.bat
 aiflow --help
+aiflow-install
 ```
 
-Do not use `setx` unless the user explicitly asks for a permanent user PATH change.
+If the user wants the short `aiflow` command in the current macOS / Linux shell session:
+
+```sh
+. {{ AIFLOW_KIT_ROOT }}/scripts/mac/aiflow-env.sh
+aiflow --help
+aiflow-install
+```
+
+Do not use `setx`, `launchctl setenv`, or shell profile edits unless the user explicitly asks for a permanent user PATH change.
 
 ## Verify Install
 
@@ -71,3 +112,4 @@ After installing into the target project:
 - Do not write database secrets into global config.
 - Use `.aiflow/databases.local.toml` for project-local database secrets.
 - Use `.bat` commands on Windows, not PowerShell `.ps1`.
+- Use `.sh` commands on macOS / Linux, and keep environment changes scoped to the current shell unless the user explicitly asks for permanent setup.

@@ -15,12 +15,13 @@ from ..core.workflow import (
     write_run_text,
 )
 from .context import run_context
+from .db import parse_db_args, run_db
 from .plan import run_plan
 from .review import run_review, run_review_report
 from .verify import run_verification, run_verify
 
 
-WORKFLOW_COMMANDS = {"start", "status", "resume", "verify", "review", "finish"}
+WORKFLOW_COMMANDS = {"start", "status", "resume", "verify", "review", "finish", "db"}
 
 
 def run_workflow(args: Namespace) -> int:
@@ -40,6 +41,8 @@ def run_workflow(args: Namespace) -> int:
             return workflow_review(rest)
         if command == "finish":
             return workflow_finish(rest)
+        if command == "db":
+            return workflow_db(rest)
 
     return run_legacy_workflow(args)
 
@@ -176,6 +179,11 @@ Review: passed
     print(f"delivered: {run.path.relative_to(root)}")
     print(f"summary: {run.path.relative_to(root) / 'summary.md'}")
     return 0
+
+
+def workflow_db(tokens: list[str]) -> int:
+    args = parse_db_args(tokens, prog="aiflow workflow db")
+    return run_db(args)
 
 
 def run_legacy_workflow(args: Namespace) -> int:

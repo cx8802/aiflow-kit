@@ -1,83 +1,93 @@
 # 在其他项目中安装 aiflow-kit
 
-本项目已经提供全局 Skill：`aiflow-kit-installer`。
+`aiflow-kit` 的目标是把项目规则、上下文、Skills 和验证记录安装到目标项目本身，而不是写入用户全局目录。
 
-它的作用是让 Codex / Claude Code 在其他项目中也知道：
+## 推荐方式
 
-```text
-aiflow-kit 源码路径 = <aiflow-kit目录>
-```
-
-当用户在任意项目中说：
-
-```text
-帮我在这个项目安装 aiflow-kit
-```
-
-agent 应该从当前项目根目录调用：
+Windows 先在当前 CMD 会话启用短命令：
 
 ```bat
-%AIFLOW_KIT%\scripts\aiflow-dev.bat init
-%AIFLOW_KIT%\scripts\aiflow-dev.bat install-skills
-%AIFLOW_KIT%\scripts\aiflow-dev.bat context --compact
+call F:\code_work\aiflow-kit\scripts\win\aiflow-env.bat
 ```
+
+然后进入目标项目：
+
+```bat
+cd /d <目标项目目录>
+aiflow-install
+```
+
+macOS / Linux 先在当前 shell 会话启用短命令：
+
+```sh
+. /path/to/aiflow-kit/scripts/mac/aiflow-env.sh
+```
+
+然后进入目标项目：
+
+```sh
+cd <目标项目目录>
+aiflow-install
+```
+
+如果目标项目已经有自己的 `AGENTS.md` 和 `CLAUDE.md`，避免生成规则文件：
+
+```bat
+aiflow-install --skip-rules
+```
+
+## 直接路径方式
+
+不想配置当前 CMD 会话时，也可以直接运行：
+
+```bat
+F:\code_work\aiflow-kit\scripts\win\aiflow-install.bat
+```
+
+macOS / Linux 直接路径方式：
+
+```sh
+sh /path/to/aiflow-kit/scripts/mac/aiflow-install.sh
+```
+
+平台脚本分开放在 `scripts/win/` 和 `scripts/mac/`，`scripts/` 根目录不放命令脚本。
 
 ## 安装后生成什么
 
-目标项目会生成：
+默认会在目标项目生成或刷新：
 
 ```text
-AGENTS.md
-CLAUDE.md
-.aiflow/
-├── config.toml
-├── context.md
-└── context.compact.md
-.agents/
-└── skills/
-    ├── aiflow-kit-guide/
-    ├── aiflow-kit-installer/
-    ├── project-analysis/
-    ├── implementation-plan/
-    ├── tdd-development/
-    ├── frontend-design/
-    ├── frontend-verify/
-    ├── playwright-verify/
-    └── code-review-release/
+AGENTS.md 或 AGENTS.md.new
+CLAUDE.md 或 CLAUDE.md.new
+.aiflow/config.toml
+.aiflow/env.local.toml
+.aiflow/context.md
+.aiflow/context.compact.md
+.aiflow/verify.md
+.agents/skills/
 ```
 
-注意：项目级安装不会写入用户全局目录。
-Playwright 运行时工具复用 `aiflow-kit/.tools/`，不会在目标项目里再安装一份。
-`.aiflow/memory.md` 会在第一次执行 `aiflow memory add` 时创建。
+如果使用 `--skip-rules`，不会创建 `AGENTS.md` / `CLAUDE.md`。
 
-## 当前会话快捷方式
+## 安全边界
 
-如果用户希望在当前 `cmd` 里直接输入 `aiflow`：
-
-```bat
-set PATH=%AIFLOW_KIT%\scripts;%PATH%
-aiflow --help
-```
-
-不要默认执行：
-
-```bat
-setx PATH ...
-```
-
-永久 PATH 修改必须等用户明确要求。
+- 默认只写当前项目。
+- 不写 `%USERPROFILE%\.agents\skills`。
+- 不写 `%USERPROFILE%\.claude\skills`。
+- 不使用 `setx` 修改永久用户环境变量。
+- 不写 `~/.zshrc`、`~/.bashrc` 或 `launchctl setenv` 修改 macOS / Linux 永久用户环境。
+- 不把目标项目事实复制到全局 Skills。
+- 数据库、Token、内网地址等敏感信息只允许写入项目级 local 文件。
 
 ## 验证安装
 
-在目标项目里运行：
+安装脚本会自动运行：
 
 ```bat
-%AIFLOW_KIT%\scripts\aiflow-dev.bat doctor
-%AIFLOW_KIT%\scripts\aiflow-dev.bat review
-%AIFLOW_KIT%\scripts\aiflow-dev.bat verify --dry-run
+aiflow verify --auto --dry-run
 ```
 
-如果已经把 `scripts` 加入当前会话 PATH：
+需要手动检查时可以运行：
 
 ```bat
 aiflow doctor
@@ -85,67 +95,10 @@ aiflow review
 aiflow verify --dry-run
 ```
 
-## 数据库连接
-
-如果安装后用户在会话中提供数据库连接，保存到目标项目：
-
-```bat
-aiflow db add dev --type postgres --dsn "postgres://user:password@127.0.0.1:5432/app" --secret-local
-```
-
-敏感信息会写入：
-
-```text
-.aiflow/databases.local.toml
-```
-
-该文件应被 `.gitignore` 忽略。
-
-## 给 Codex / Claude Code 的执行规则
+## 给 Agent 的执行规则
 
 1. 先确认当前目录是目标项目根目录。
-2. 使用 `%AIFLOW_KIT%\scripts\aiflow-dev.bat`，不要猜测 aiflow 是否在 PATH。
-3. 默认执行项目级安装，不做全局安装。
-4. 不复制目标项目事实到全局 Skills。
-5. 不保存数据库 secret 到 `.aiflow/databases.toml`。
-6. 安装完成后提示用户重启 Codex/Claude Code 只在需要重新读取全局 Skills 时才必要；项目级文件当前会话可直接读取。
-
-## 推荐提示词
-
-用户可以在其他项目中这样说：
-
-```text
-使用全局 aiflow-kit-installer，帮我在当前项目安装 aiflow-kit，并生成 context。
-```
-
-或者：
-
-```text
-这个项目接入 aiflow-kit，使用本机 aiflow-kit 源码版安装。
-```
-
-## 更新全局和当前项目
-
-如果用户在其他项目中说：
-
-```text
-帮我更新下 aiflow
-```
-
-agent 应执行：
-
-```bat
-%AIFLOW_KIT%\scripts\aiflow-update.bat
-```
-
-它会同时更新：
-
-- Codex 用户级 aiflow Skills。
-- Claude Code 用户级 aiflow Skills。
-- Claude Code 插件包。
-- Codex 插件包。
-- 当前项目 `.agents/skills`。
-- 当前项目 `.aiflow/context.md`。
-- `aiflow-kit` 共享 `.tools/frontend-tools` 和 `.tools/ms-playwright`。
-
-更新全局 Skills 或插件后，可能需要重启 Codex / Claude Code。
+2. 优先运行 `aiflow-install`。
+3. 如果目标项目已有自己的规则文件，使用 `aiflow-install --skip-rules`。
+4. 不做用户级全局安装，除非用户显式要求。
+5. 安装完成后说明生成了哪些项目级文件，以及验证命令结果。
