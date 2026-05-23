@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import json
 from argparse import Namespace
+from pathlib import Path
+from typing import Any
 
 from ..core.config import load_config
 from ..core.files import write_text_safely
@@ -13,6 +16,15 @@ from ..core.risk_rules import risk_signals
 def run_review(args: Namespace) -> int:
     root = project_root()
     ensure_aiflow_dir(root)
+    output = args.output or (root / ".aiflow" / "review.md")
+    result = run_review_report(root, output)
+    print(f"{result['status_text']}: {result['path']}")
+    return 0
+
+
+def run_review_report(root: Path, output: Path) -> dict[str, Any]:
+    output_path = output if output.suffix else output / "review.md"
+    output_dir = output_path.parent
     config = load_config(root)
 
     if not git_available(root):
@@ -57,7 +69,19 @@ def run_review(args: Namespace) -> int:
 - Check tests for changed production code.
 - Check project-specific risk paths before release.
 """
-    output = args.output or (root / ".aiflow" / "review.md")
-    path, status_text = write_text_safely(output, report, force=True)
-    print(f"{status_text}: {path}")
-    return 0
+    path, status_text = write_text_safely(output_path, report, force=True)
+    payload = {
+        "ok": True,
+        "generated_at": now_stamp(),
+        "changed_files": changed_files,
+        "high_risk_signals": risks,
+        "findings": [],
+        "blocking": False,
+    }
+    write_json(output_dir / "review.json", payload)
+    return {"path": str(path), "status_text": status_text, **payload}
+
+
+def write_json(path: Path, payload: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8", newline="\n")

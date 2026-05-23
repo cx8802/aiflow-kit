@@ -49,9 +49,21 @@ Windows 10 1803 及以上版本通常已经带有 WebView2；Windows 11 默认�
 
 ## 4. 安装 Rust
 
-Tauri 2 使用 Rust 构建桌面端能力。推荐用 `rustup` 安装和管理 Rust。
+Tauri 2 使用 Rust 构建桌面端能力。推荐用 `rustup` 安装和管理 Rust。这里把 Rust 环境安装到 `D:\Program Files\Rust` 目录下。
 
-PowerShell 执行：
+先用 PowerShell 创建目录，并把 `rustup` 和 `cargo` 的用户环境变量指向该目录：
+
+```powershell
+$rustRoot = 'D:\Program Files\Rust'
+New-Item -ItemType Directory -Force -Path "$rustRoot\rustup", "$rustRoot\cargo"
+
+[Environment]::SetEnvironmentVariable('RUSTUP_HOME', "$rustRoot\rustup", 'User')
+[Environment]::SetEnvironmentVariable('CARGO_HOME', "$rustRoot\cargo", 'User')
+$env:RUSTUP_HOME = "$rustRoot\rustup"
+$env:CARGO_HOME = "$rustRoot\cargo"
+```
+
+然后安装 `rustup`：
 
 ```powershell
 winget install --id Rustlang.Rustup
@@ -61,13 +73,25 @@ winget install --id Rustlang.Rustup
 
 <https://www.rust-lang.org/tools/install>
 
-安装过程中注意选择 MSVC 工具链。安装完成后，重启 PowerShell，然后检查：
+安装过程中注意选择 MSVC 工具链。安装完成后，把 Cargo 可执行文件目录加入用户 `Path`，然后重启 PowerShell：
+
+```powershell
+$cargoBin = 'D:\Program Files\Rust\cargo\bin'
+$userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
+if (($userPath -split ';') -notcontains $cargoBin) {
+  [Environment]::SetEnvironmentVariable('Path', "$userPath;$cargoBin", 'User')
+}
+```
+
+重启 PowerShell 后检查：
 
 ```powershell
 rustc -V
 cargo -V
 rustup show
 ```
+
+确认 `rustup show` 里显示的 `RUSTUP_HOME` 和 `CARGO_HOME` 都在 `D:\Program Files\Rust` 下。
 
 如果默认工具链不是 MSVC，执行：
 
@@ -238,7 +262,19 @@ rustup show
 # 勾选 Desktop development with C++
 
 # 2. 安装 Rust
+$rustRoot = 'D:\Program Files\Rust'
+New-Item -ItemType Directory -Force -Path "$rustRoot\rustup", "$rustRoot\cargo"
+[Environment]::SetEnvironmentVariable('RUSTUP_HOME', "$rustRoot\rustup", 'User')
+[Environment]::SetEnvironmentVariable('CARGO_HOME', "$rustRoot\cargo", 'User')
+$env:RUSTUP_HOME = "$rustRoot\rustup"
+$env:CARGO_HOME = "$rustRoot\cargo"
 winget install --id Rustlang.Rustup
+$cargoBin = 'D:\Program Files\Rust\cargo\bin'
+$userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
+if (($userPath -split ';') -notcontains $cargoBin) {
+  [Environment]::SetEnvironmentVariable('Path', "$userPath;$cargoBin", 'User')
+}
+# 重启 PowerShell 后执行
 rustup default stable-msvc
 
 # 3. 创建项目

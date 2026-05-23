@@ -1,5 +1,86 @@
 # Plan
 
+## Project-Local Aiflow CLI Install Plan
+
+### Goal
+
+- Make `packages/aiflow-cli` install into the repository `.venv` by default.
+- Keep quick install and update flows project-local unless the user explicitly opts into user-level global skills.
+- Preserve local plugin package generation under `.aiflow/dist/`.
+
+### Non-goals
+
+- Do not remove existing user-level skills automatically.
+- Do not write user-global configuration by default.
+- Do not change the `install-skills` explicit global target guard.
+
+### Impact Scope
+
+- `scripts/aiflow-dev.bat`
+- `scripts/quick-install.bat`
+- `scripts/aiflow-update.bat`
+- `packages/aiflow-cli/tests/test_cli_smoke.py`
+- `README.md`
+- Install-related docs
+- `.aiflow/plan.md`
+
+### Steps
+
+1. Done: Add regression tests for project-local install defaults.
+2. Done: Update scripts to create/use `.venv` and avoid user skills by default.
+3. Done: Update docs to describe project-level install first.
+4. Done: Run focused and configured verification.
+
+### Verification
+
+- Passed: `python -m unittest discover -s packages\aiflow-cli\tests -p test_cli_smoke.py -k quick_install -k update_help -k codex_user_install_requires_explicit_global_flags`
+- Passed: `.venv\Scripts\python.exe -m pip install -e packages\aiflow-cli`
+- Passed: `python -m unittest discover -s packages\aiflow-cli\tests -p test_cli_smoke.py`
+- Passed: `cmd /c scripts\aiflow-dev.bat verify --auto --continue-on-error`
+- Passed: `git diff --check`
+
+## Python CLI Workspace Layout Plan
+
+### Goal
+
+- Move the Python CLI package out of the repository root into `packages/aiflow-cli/`.
+- Keep the repository root as the multi-project kit workspace containing apps, extensions, node tooling, docs, scripts, and packages.
+- Preserve development commands through `scripts/aiflow-dev.bat`.
+
+### Non-goals
+
+- Do not change CLI behavior.
+- Do not move GUI, browser extension, node runner, docs, or runtime artifact directories.
+- Do not write user-global configuration.
+
+### Impact Scope
+
+- `packages/aiflow-cli/pyproject.toml`
+- `packages/aiflow-cli/src/`
+- `packages/aiflow-cli/tests/`
+- `scripts/aiflow-dev.bat`
+- `scripts/quick-uninstall.bat`
+- `README.md`
+- Key docs that mention editable install, test paths, or `src/aiflow`
+- `.aiflow/config.toml`
+- `.aiflow/plan.md`
+
+### Steps
+
+1. Done: Add a layout regression test for the new Python CLI package root.
+2. Done: Move `pyproject.toml`, `src/`, and `tests/` under `packages/aiflow-cli/`.
+3. Done: Update path discovery, dev script `PYTHONPATH`, uninstall skill source path, tests, and docs.
+4. Done: Run focused and configured verification.
+
+### Verification
+
+- Passed: layout regression test, included in Python CLI smoke suite
+- Passed: `python -m unittest discover -s packages\aiflow-cli\tests -p test_cli_smoke.py`
+- Passed: `cmd /c scripts\aiflow-dev.bat --version`
+- Passed: `cmd /c scripts\aiflow-dev.bat verify --auto --continue-on-error`
+- Passed: `python -m pip wheel packages\aiflow-cli -w .cache\wheels`
+- Passed: `git diff --check`
+
 Tighten the boundary between updating aiflow-kit itself and installing aiflow-kit into a target project.
 
 ## Goal
@@ -33,6 +114,90 @@ Tighten the boundary between updating aiflow-kit itself and installing aiflow-ki
 ## Verification
 
 - Passed: `cmd /c "scripts\aiflow-update.bat --help & exit /b 0"`
+- Passed: `git diff --check`
+- Passed: `scripts\aiflow-dev.bat verify --auto --continue-on-error`
+
+---
+
+## CodeGraph And Graphify Layer Implementation Plan
+
+### Goal
+
+- Split code structure facts and project knowledge facts into separate generated layers.
+- Add `CodeGraph` for deterministic code structure scans.
+- Add `Graphify` for project knowledge built from docs and project memory.
+
+### Non-goals
+
+- Do not implement a full graph database.
+- Do not call external LLMs or network services.
+- Do not replace `aiflow context` or `aiflow memory`.
+- Do not auto-run CodeGraph or Graphify from workflow yet.
+
+### Impact Scope
+
+- `src/aiflow/core/codegraph.py`
+- `src/aiflow/core/graphify.py`
+- `src/aiflow/commands/codegraph.py`
+- `src/aiflow/commands/graphify.py`
+- `src/aiflow/cli.py`
+- `tests/test_cli_smoke.py`
+- `docs/26-全链条自动化开发差距分析与优化路线.md`
+- `.gitignore`
+- `.aiflow/plan.md`
+
+### Steps
+
+1. Done: Add failing tests for `aiflow codegraph scan` and `aiflow graphify build`.
+2. Done: Implement deterministic Python CodeGraph scanning for modules, symbols, and entrypoints.
+3. Done: Implement Graphify knowledge output from README, docs, and project memory.
+4. Done: Register new CLI commands and ignore generated output directories.
+5. Done: Run full repository verification.
+
+### Verification
+
+- Passed: `python -m unittest tests.test_cli_smoke.CliSmokeTests.test_codegraph_scan_writes_code_structure_layer tests.test_cli_smoke.CliSmokeTests.test_graphify_build_writes_project_knowledge_layer`
+- Passed: `git diff --check`
+- Passed: `scripts\aiflow-dev.bat verify --auto --continue-on-error`
+
+---
+
+## Workflow Run Runtime Implementation Plan
+
+### Goal
+
+- Implement the minimal workflow run runtime described in `docs/26-全链条自动化开发差距分析与优化路线.md`.
+- Add run containers, current run selection, state files, spec/context/plan artifacts, structured verification/review results, and finish gating.
+
+### Non-goals
+
+- Do not implement multi-agent run dispatch yet.
+- Do not add GUI behavior.
+- Do not automate commit, push, PR, or release.
+- Do not change database, SSH, WSL, or Forge behavior beyond workflow gating hooks.
+
+### Impact Scope
+
+- `src/aiflow/core/workflow.py`
+- `src/aiflow/commands/workflow.py`
+- `src/aiflow/commands/verify.py`
+- `src/aiflow/commands/review.py`
+- `tests/test_cli_smoke.py`
+- `.gitignore`
+- `.aiflow/plan.md`
+
+### Steps
+
+1. Done: Add failing tests for `workflow start` run container creation and current-run verify/review/finish.
+2. Done: Implement core workflow run state, current pointer, event log, spec/context/plan artifacts.
+3. Done: Extend `workflow` command with `start/status/resume/verify/review/finish` while preserving legacy behavior.
+4. Done: Add structured `verify.json` and `review.json` outputs for run-aware commands.
+5. Done: Run full repository verification.
+
+### Verification
+
+- Passed: `python -m unittest tests.test_cli_smoke.CliSmokeTests.test_workflow_start_creates_run_container tests.test_cli_smoke.CliSmokeTests.test_workflow_verify_review_and_finish_use_current_run`
+- Passed: `python -m unittest tests.test_cli_smoke.CliSmokeTests.test_workflow_generates_context_compact_and_plan tests.test_cli_smoke.CliSmokeTests.test_workflow_check_runs_verify_and_review tests.test_cli_smoke.CliSmokeTests.test_workflow_start_creates_run_container tests.test_cli_smoke.CliSmokeTests.test_workflow_verify_review_and_finish_use_current_run tests.test_cli_smoke.CliSmokeTests.test_review_handles_utf8_paths_on_windows tests.test_cli_smoke.CliSmokeTests.test_verify_auto_detects_unittest`
 - Passed: `git diff --check`
 - Passed: `scripts\aiflow-dev.bat verify --auto --continue-on-error`
 
@@ -74,3 +239,57 @@ Tighten the boundary between updating aiflow-kit itself and installing aiflow-ki
 - Passed: `scripts\aiflow-dev.bat verify --auto --continue-on-error`
 - Passed: `scripts\aiflow-dev.bat review`
 - Passed: `npm.cmd run tauri dev` and desktop window launch after Rust toolchain detection recovered
+---
+
+## Full-Chain Automation Document Optimization Plan
+
+### Goal
+
+- Tighten the full-chain automation analysis so it is more actionable for implementation.
+- Make the document clearly distinguish current discrete-tool behavior from the target workflow run runtime.
+
+### Non-goals
+
+- Do not implement workflow runtime code in this pass.
+- Do not change existing CLI behavior.
+- Do not change installer, skills, or GUI files.
+
+### Impact Scope
+
+- `docs/26-全链条自动化开发差距分析与优化路线.md`
+- `.aiflow/plan.md`
+
+### Steps
+
+1. Done: Review the first draft and identify missing implementation-level anchors.
+2. Done: Rewrite the document around one-page conclusion, minimal viable loop, run files, commands, and phased rollout.
+3. Done: Run repository verification.
+
+### Verification
+
+- Passed: `git diff --check`
+- Passed: `scripts\aiflow-dev.bat verify --auto --continue-on-error`
+---
+
+## Windows Tauri Rust Install Path Plan
+
+### Goal
+
+- Update the Windows Tauri 2 development environment guide so Rust installs under `D:\Program Files\Rust`.
+
+### Impact Scope
+
+- `docs/other/Windows 创建 Tauri 2 开发环境.md`
+- `.aiflow/plan.md`
+
+### Steps
+
+1. Done: Read compact project context and target documentation.
+2. Done: Add `RUSTUP_HOME` and `CARGO_HOME` setup for `D:\Program Files\Rust`.
+3. Done: Update the minimum workflow summary with the same Rust path setup.
+4. Done: Run focused verification.
+
+### Verification
+
+- Passed: `git diff --check`
+- Passed: `scripts\aiflow-dev.bat verify --auto --continue-on-error`

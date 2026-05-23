@@ -51,7 +51,7 @@ aiflow-kit/
 └── docs/
 ```
 
-模板和 Skills 放到 `src/aiflow/assets/`，这样 `pip install -e .` 或后续打包安装后，CLI 仍能复制内置资源。
+模板和 Skills 放到 `packages/aiflow-cli/src/aiflow/assets/`，这样安装到项目 `.venv`（例如 `.venv\Scripts\python.exe -m pip install -e packages\aiflow-cli`）或后续打包安装后，CLI 仍能复制内置资源。
 
 ## 运行时分工
 

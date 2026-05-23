@@ -135,7 +135,7 @@ usage_file = ".aiflow/claude-agent/usage.jsonl"
 运行时命令：
 
 ```bat
-aiflow claude-agent run "总结 src/aiflow/commands" --model small
+aiflow claude-agent run "总结 packages/aiflow-cli/src/aiflow/commands" --model small
 aiflow claude-agent review-diff --model standard
 aiflow claude-agent explore "分析数据库模块风险" --model strong
 ```
@@ -228,7 +228,7 @@ aiflow claude-agent run "总结当前项目的命令体系" --model small
 面向代码探索：
 
 ```bat
-aiflow claude-agent explore "分析 src/aiflow/core/config.py"
+aiflow claude-agent explore "分析 packages/aiflow-cli/src/aiflow/core/config.py"
 ```
 
 适合：
@@ -288,7 +288,7 @@ Python CLI 调 Node runner 时传入 JSON 文件，避免命令行参数过长�
 {
   "cwd": "<aiflow-kit目录>",
   "task": "explore-code",
-  "prompt": "分析 src/aiflow/commands",
+  "prompt": "分析 packages/aiflow-cli/src/aiflow/commands",
   "model": "configured-small-model",
   "allowedTools": ["Read", "Glob", "Grep"],
   "disallowedTools": ["Bash", "Edit", "Write"],

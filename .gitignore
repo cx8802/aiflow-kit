@@ -2,6 +2,7 @@
 .venv/
 __pycache__/
 *.py[cod]
+*.egg-info/
 
 # Project-local tool/cache isolation
 .cache/
@@ -12,7 +13,12 @@ __pycache__/
 .aiflow/dist/
 .aiflow/doctor.md
 .aiflow/review.md
+.aiflow/review.json
 .aiflow/verify.md
+.aiflow/verify.json
+.aiflow/runs/
+.aiflow/codegraph/
+.aiflow/graphify/
 .aiflow/agents/
 .aiflow/claude-agent/
 .aiflow/browser/

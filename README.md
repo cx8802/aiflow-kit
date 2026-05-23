@@ -54,7 +54,7 @@ AI 编程真正麻烦的地方，通常不是“让模型写一段代码”，�
 
 ```bat
 cd /d <aiflow-kit目录>
-set PYTHONPATH=%CD%\src;%PYTHONPATH%
+set PYTHONPATH=%CD%\packages\aiflow-cli\src;%PYTHONPATH%
 python -m aiflow --help
 ```
 
@@ -89,14 +89,35 @@ aiflow review
 scripts\quick-install.bat
 ```
 
+默认安装是项目级的：CLI 会安装到 `aiflow-kit\.venv`，内置 Skills 会安装到本仓库 `.agents\skills`，插件包生成到 `.aiflow\dist`。它不会写入 `%USERPROFILE%\.agents\skills` 或 `%USERPROFILE%\.claude\skills`。
+
+如果确认要把通用 Skills 安装到 Codex/Claude 的用户级目录，必须显式使用：
+
+```bat
+scripts\quick-install.bat --global-skills
+```
+
 该脚本会：
 
+- 安装 Python CLI 到 `aiflow-kit\.venv`。
 - 安装共享前端/Playwright 工具。
-- 安装 Codex 与 Claude Code 用户级通用 Skills。
+- 安装内置 Skills 到本仓库 `.agents\skills`。
 - 生成 Claude/Codex 插件包。
 - 验证源码版 CLI 可运行。
 
-它不会修改系统环境变量，不会写用户全局 `AGENTS.md` 或 `CLAUDE.md`，也不会把业务项目规则写到全局。
+它不会修改系统环境变量，不会写用户全局 `AGENTS.md` 或 `CLAUDE.md`，也不会把业务项目规则写到全局。用户级 Skills 需要 `--global-skills` 显式开启。
+
+快速卸载已安装的 aiflow-kit 用户级 Skills、插件包和共享运行时工具：
+
+```bat
+scripts\quick-uninstall.bat --yes
+```
+
+如需先预览删除范围：
+
+```bat
+scripts\quick-uninstall.bat --dry-run
+```
 
 ## 常用命令
 
@@ -146,15 +167,14 @@ $env:GITHUB_TOKEN="..."
 
 ```text
 aiflow-kit/
-  src/aiflow/                 Python CLI 源码
-  src/aiflow/assets/skills/   内置 Skills
-  src/aiflow/assets/templates 项目模板
+  packages/aiflow-cli/        Python CLI package
+  packages/aiflow-cli/src/    Python CLI source
+  packages/aiflow-cli/tests/  CLI smoke tests
   scripts/                    Windows 包装与安装脚本
   docs/                       设计文档和专题指南
   apps/aiflow-gui/            Tauri 2 desktop GUI scaffold
   extensions/browser/         Chrome/Edge 浏览器伴随插件
   node/claude-agent-runner/   Claude Agent SDK runner
-  tests/                      CLI smoke tests
 ```
 
 ## 设计原则
@@ -173,12 +193,12 @@ aiflow-kit/
 ```bat
 aiflow verify --auto --continue-on-error
 aiflow review
-python -m compileall src
-python -m unittest discover -s tests
-python -m pip wheel . -w dist
+python -m compileall packages/aiflow-cli/src
+python -m unittest discover -s packages/aiflow-cli/tests
+python -m pip wheel packages/aiflow-cli -w dist
 ```
 
-包版本在 `pyproject.toml` 和 `src/aiflow/__init__.py` 中维护。发布前请确认 CLI 版本、包版本、插件 manifest 版本、README 和 Release notes 一致。
+包版本在 `packages/aiflow-cli/pyproject.toml` 和 `packages/aiflow-cli/src/aiflow/__init__.py` 中维护。发布前请确认 CLI 版本、包版本、插件 manifest 版本、README 和 Release notes 一致。
 
 ## 文档
 

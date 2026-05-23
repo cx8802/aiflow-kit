@@ -69,7 +69,7 @@
 验收：
 
 ```bat
-pip install -e .
+.venv\Scripts\python.exe -m pip install -e packages\aiflow-cli
 aiflow --help
 aiflow init
 ```

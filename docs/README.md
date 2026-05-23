@@ -37,6 +37,7 @@
 | [23-浏览器伴随插件.md](23-浏览器伴随插件.md) | 说明 Chrome/Edge 浏览器伴随插件、localhost bridge、鼠标选元素和项目级网页上下文落盘 |
 | [24-WSL与SSH操作.md](24-WSL与SSH操作.md) | 说明 `aiflow wsl` 与 `aiflow ssh` 的项目级操作命令、profile 配置和 secret 边界 |
 | [25-配置界面技术路线.md](25-配置界面技术路线.md) | 比较 React Web 控制台与 Tauri 桌面端路线，建议先做可迁移的 React 配置台 |
+| [26-全链条自动化开发差距分析与优化路线.md](26-全链条自动化开发差距分析与优化路线.md) | 从架构和真实使用链路分析为什么自动化开发尚未闭环，并提出 workflow run 状态模型路线 |
 
 ## 辅助安装文档
 

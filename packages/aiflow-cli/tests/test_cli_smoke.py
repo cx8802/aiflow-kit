@@ -17,8 +17,9 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 
 
-ROOT = Path(__file__).resolve().parents[1]
-SRC = ROOT / "src"
+PACKAGE_ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[3]
+SRC = PACKAGE_ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
@@ -41,6 +42,15 @@ def run_aiflow(cwd: Path, *args: str, env: dict[str, str] | None = None) -> subp
 
 
 class CliSmokeTests(unittest.TestCase):
+    def test_python_cli_lives_in_named_workspace_package(self) -> None:
+        package_root = ROOT / "packages" / "aiflow-cli"
+        self.assertTrue((package_root / "pyproject.toml").exists())
+        self.assertTrue((package_root / "src" / "aiflow").exists())
+        self.assertTrue((package_root / "tests").exists())
+        self.assertFalse((ROOT / "pyproject.toml").exists())
+        self.assertFalse((ROOT / "src").exists())
+        self.assertFalse((ROOT / "tests").exists())
+
     def test_init_generates_project_files_without_context(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             cwd = Path(tmp)
@@ -83,6 +93,170 @@ class CliSmokeTests(unittest.TestCase):
             self.assertIn("# Compact Context", compact)
             self.assertIn("## Project Memory", compact)
             self.assertIn("Use project-level memory", compact)
+
+    def test_workflow_generates_context_compact_and_plan(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            cwd = Path(tmp)
+            (cwd / "README.md").write_text("# Demo\n", encoding="utf-8")
+
+            result = run_aiflow(cwd, "workflow", "Optimize source workflow")
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertTrue((cwd / ".aiflow" / "context.md").exists())
+            self.assertTrue((cwd / ".aiflow" / "context.compact.md").exists())
+            plan = (cwd / ".aiflow" / "plan.md").read_text(encoding="utf-8")
+            self.assertIn("Optimize source workflow", plan)
+            self.assertIn("Running workflow step: context", result.stdout)
+            self.assertIn("Running workflow step: plan", result.stdout)
+
+    def test_workflow_check_runs_verify_and_review(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            cwd = Path(tmp)
+            (cwd / "pyproject.toml").write_text("[project]\nname = \"demo\"\nversion = \"0.1.0\"\n", encoding="utf-8")
+            tests_dir = cwd / "tests"
+            tests_dir.mkdir()
+            (tests_dir / "test_demo.py").write_text(
+                "import unittest\n\n"
+                "class DemoTests(unittest.TestCase):\n"
+                "    def test_demo(self):\n"
+                "        self.assertEqual(1 + 1, 2)\n",
+                encoding="utf-8",
+            )
+
+            result = run_aiflow(cwd, "workflow", "Ship checked workflow", "--check")
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertTrue((cwd / ".aiflow" / "verify.md").exists())
+            self.assertTrue((cwd / ".aiflow" / "review.md").exists())
+            verify = (cwd / ".aiflow" / "verify.md").read_text(encoding="utf-8")
+            self.assertIn("python -m unittest discover -s tests", verify)
+            self.assertIn("Running workflow step: verify", result.stdout)
+            self.assertIn("Running workflow step: review", result.stdout)
+
+    def test_workflow_start_creates_run_container(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            cwd = Path(tmp)
+            (cwd / "README.md").write_text("# Demo\n", encoding="utf-8")
+
+            result = run_aiflow(cwd, "workflow", "start", "Optimize source workflow")
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            current = (cwd / ".aiflow" / "runs" / "current").read_text(encoding="utf-8").strip()
+            run_dir = cwd / ".aiflow" / "runs" / current
+            self.assertTrue(run_dir.exists())
+            state = json.loads((run_dir / "state.json").read_text(encoding="utf-8"))
+            self.assertEqual(state["goal"], "Optimize source workflow")
+            self.assertEqual(state["status"], "planned")
+            self.assertEqual(state["stages"]["context"], "done")
+            self.assertEqual(state["stages"]["spec"], "done")
+            self.assertEqual(state["stages"]["plan"], "done")
+            self.assertIn("Optimize source workflow", (run_dir / "input.md").read_text(encoding="utf-8"))
+            self.assertIn("## Required Verification", (run_dir / "spec.md").read_text(encoding="utf-8"))
+            self.assertIn("Optimize source workflow", (run_dir / "plan.md").read_text(encoding="utf-8"))
+            self.assertTrue((run_dir / "context.md").exists())
+            self.assertTrue((run_dir / "events.jsonl").exists())
+            self.assertIn("created:", result.stdout)
+            self.assertIn("status: planned", result.stdout)
+
+    def test_workflow_verify_review_and_finish_use_current_run(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            cwd = Path(tmp)
+            (cwd / "pyproject.toml").write_text("[project]\nname = \"demo\"\nversion = \"0.1.0\"\n", encoding="utf-8")
+            tests_dir = cwd / "tests"
+            tests_dir.mkdir()
+            (tests_dir / "test_demo.py").write_text(
+                "import unittest\n\n"
+                "class DemoTests(unittest.TestCase):\n"
+                "    def test_demo(self):\n"
+                "        self.assertEqual(1 + 1, 2)\n",
+                encoding="utf-8",
+            )
+
+            start = run_aiflow(cwd, "workflow", "start", "Ship run runtime")
+            self.assertEqual(start.returncode, 0, start.stderr)
+            current = (cwd / ".aiflow" / "runs" / "current").read_text(encoding="utf-8").strip()
+            run_dir = cwd / ".aiflow" / "runs" / current
+
+            verify = run_aiflow(cwd, "workflow", "verify")
+            self.assertEqual(verify.returncode, 0, verify.stderr)
+            verify_json = json.loads((run_dir / "verify.json").read_text(encoding="utf-8"))
+            self.assertTrue(verify_json["ok"])
+            self.assertEqual(verify_json["commands"][0]["exit_code"], 0)
+
+            review = run_aiflow(cwd, "workflow", "review")
+            self.assertEqual(review.returncode, 0, review.stderr)
+            review_json = json.loads((run_dir / "review.json").read_text(encoding="utf-8"))
+            self.assertTrue(review_json["ok"])
+            self.assertEqual(review_json["findings"], [])
+
+            finish = run_aiflow(cwd, "workflow", "finish")
+            self.assertEqual(finish.returncode, 0, finish.stderr)
+            state = json.loads((run_dir / "state.json").read_text(encoding="utf-8"))
+            self.assertEqual(state["status"], "delivered")
+            self.assertEqual(state["stages"]["finish"], "done")
+            summary = (run_dir / "summary.md").read_text(encoding="utf-8")
+            self.assertIn("Ship run runtime", summary)
+            self.assertIn("Verification: passed", summary)
+
+    def test_codegraph_scan_writes_code_structure_layer(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            cwd = Path(tmp)
+            package = cwd / "src" / "demo"
+            package.mkdir(parents=True)
+            (package / "__init__.py").write_text("", encoding="utf-8")
+            (package / "cli.py").write_text(
+                "from .core import helper\n\n"
+                "class Runner:\n"
+                "    def run(self):\n"
+                "        return helper()\n\n"
+                "def main():\n"
+                "    return Runner().run()\n",
+                encoding="utf-8",
+            )
+            (package / "core.py").write_text("def helper():\n    return 1\n", encoding="utf-8")
+
+            result = run_aiflow(cwd, "codegraph", "scan")
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            codegraph_dir = cwd / ".aiflow" / "codegraph"
+            modules = json.loads((codegraph_dir / "modules.json").read_text(encoding="utf-8"))
+            symbols = json.loads((codegraph_dir / "symbols.json").read_text(encoding="utf-8"))
+            entrypoints = json.loads((codegraph_dir / "entrypoints.json").read_text(encoding="utf-8"))
+            summary = (codegraph_dir / "summary.md").read_text(encoding="utf-8")
+
+            self.assertEqual(modules["layer"], "CodeGraph")
+            self.assertIn("src/demo/cli.py", [module["path"] for module in modules["modules"]])
+            self.assertIn("Runner", [symbol["name"] for symbol in symbols["symbols"]])
+            self.assertIn("main", [symbol["name"] for symbol in symbols["symbols"]])
+            self.assertIn("src/demo/cli.py:main", [entry["id"] for entry in entrypoints["entrypoints"]])
+            self.assertIn("CodeGraph", summary)
+
+    def test_graphify_build_writes_project_knowledge_layer(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            cwd = Path(tmp)
+            (cwd / "README.md").write_text("# Demo\n\nThis project ships an AI workflow CLI.\n", encoding="utf-8")
+            docs = cwd / "docs"
+            docs.mkdir()
+            (docs / "architecture.md").write_text("# Architecture\n\nCodeGraph is structure. Graphify is knowledge.\n", encoding="utf-8")
+            memory = run_aiflow(cwd, "memory", "add", "Project keeps facts in repository memory")
+            self.assertEqual(memory.returncode, 0, memory.stderr)
+
+            result = run_aiflow(cwd, "graphify", "build")
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            graphify_dir = cwd / ".aiflow" / "graphify"
+            knowledge = json.loads((graphify_dir / "knowledge.json").read_text(encoding="utf-8"))
+            concepts = json.loads((graphify_dir / "concepts.json").read_text(encoding="utf-8"))
+            relations = json.loads((graphify_dir / "relations.json").read_text(encoding="utf-8"))
+            summary = (graphify_dir / "summary.md").read_text(encoding="utf-8")
+
+            self.assertEqual(knowledge["layer"], "Graphify")
+            self.assertIn("README.md", [item["path"] for item in knowledge["sources"]])
+            self.assertIn("docs/architecture.md", [item["path"] for item in knowledge["sources"]])
+            self.assertIn("Project keeps facts", knowledge["memory"][0])
+            self.assertIn("CodeGraph", [concept["name"] for concept in concepts["concepts"]])
+            self.assertTrue(any(relation["type"] == "documents" for relation in relations["relations"]))
+            self.assertIn("Graphify", summary)
 
     def test_memory_add_list_search_and_sensitive_guard(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -150,6 +324,27 @@ class CliSmokeTests(unittest.TestCase):
             guide = (cwd / ".agents" / "skills" / "aiflow-kit-guide" / "SKILL.md").read_text(encoding="utf-8")
             self.assertIn(str(ROOT), guide)
             self.assertNotIn("{{ AIFLOW_KIT_ROOT }}", guide)
+
+    def test_quick_install_defaults_to_project_local_cli_and_skills(self) -> None:
+        script = (ROOT / "scripts" / "quick-install.bat").read_text(encoding="utf-8")
+        self.assertIn(r'python -m venv "%AIFLOW_KIT_ROOT%\.venv"', script)
+        self.assertIn(r'"%AIFLOW_KIT_ROOT%\.venv\Scripts\python.exe" -m pip install -e "%AIFLOW_KIT_ROOT%\packages\aiflow-cli"', script)
+        self.assertIn("install-skills --target codex-repo --force", script)
+        self.assertIn('set "AIFLOW_INSTALL_GLOBAL=0"', script)
+        self.assertIn('if not "%AIFLOW_INSTALL_GLOBAL%"=="1" goto skip_global_skills', script)
+        self.assertIn("--global-skills", script)
+
+    def test_update_help_describes_project_local_default_and_global_opt_in(self) -> None:
+        result = subprocess.run(
+            ["cmd", "/c", str(ROOT / "scripts" / "aiflow-update.bat"), "--help"],
+            cwd=ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("Default: update the aiflow-kit project-local environment only.", result.stdout)
+        self.assertIn("--global-skills", result.stdout)
+        self.assertNotIn("Default: update global aiflow skills", result.stdout)
 
     def test_env_detect_writes_local_config(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -863,6 +1058,23 @@ test = "python --version"
             self.assertEqual(result.returncode, 0, result.stderr)
             report = (cwd / ".aiflow" / "verify.md").read_text(encoding="utf-8")
             self.assertIn("python -m unittest discover -s tests", report)
+
+    def test_verify_auto_detects_nested_python_workspace_package(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            cwd = Path(tmp)
+            package = cwd / "packages" / "aiflow-cli"
+            (package / "src" / "demo").mkdir(parents=True)
+            (package / "src" / "demo" / "__init__.py").write_text("", encoding="utf-8")
+            (package / "tests").mkdir()
+            (package / "tests" / "test_demo.py").write_text("import unittest\n", encoding="utf-8")
+            (package / "pyproject.toml").write_text("[project]\nname = \"demo\"\nversion = \"0.1.0\"\n", encoding="utf-8")
+
+            result = run_aiflow(cwd, "verify", "--auto", "--dry-run")
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            report = (cwd / ".aiflow" / "verify.md").read_text(encoding="utf-8")
+            self.assertIn("python -m unittest discover -s packages/aiflow-cli/tests", report)
+            self.assertIn("python -m compileall packages/aiflow-cli/src", report)
 
     def test_verify_auto_detects_node_scripts_and_compileall(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

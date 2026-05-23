@@ -24,6 +24,8 @@ def detect_tech(root: Path) -> list[str]:
     for tech, markers in TECH_MARKERS.items():
         if any((root / marker).exists() for marker in markers):
             found.append(tech)
+        elif tech == "Python" and nested_python_projects(root):
+            found.append(tech)
     return found
 
 
@@ -39,6 +41,7 @@ def important_files(root: Path) -> list[str]:
     names = [
         "README.md",
         "pyproject.toml",
+        "packages/aiflow-cli/pyproject.toml",
         "package.json",
         "go.mod",
         "pom.xml",
@@ -68,13 +71,24 @@ def suggested_commands(root: Path, config: dict) -> list[str]:
                     suggestions.append(f"{key}: `npm.cmd run {key}`")
         except Exception:
             pass
-    if (root / "pyproject.toml").exists():
+    if (root / "pyproject.toml").exists() or nested_python_projects(root):
         suggestions.append("python: `python -m pytest` if pytest is configured")
     if (root / "go.mod").exists():
         suggestions.append("go test: `go test ./...`")
     if (root / "pom.xml").exists():
         suggestions.append("maven test: `mvn test`")
     return suggestions
+
+
+def nested_python_projects(root: Path) -> list[Path]:
+    packages_root = root / "packages"
+    if not packages_root.exists():
+        return []
+    return [
+        child
+        for child in sorted(packages_root.iterdir(), key=lambda p: p.name.lower())
+        if child.is_dir() and (child / "pyproject.toml").exists()
+    ]
 
 
 def build_context_report(root: Path) -> str:

@@ -14,12 +14,11 @@ dev = ""
 include = [
   "README.md",
   "package.json",
-  "pyproject.toml",
+  "packages",
   "go.mod",
   "pom.xml",
-  "src",
   "docs",
-  "tests"
+  "scripts"
 ]
 exclude = [
   ".git",

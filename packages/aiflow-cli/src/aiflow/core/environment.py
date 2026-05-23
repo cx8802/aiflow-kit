@@ -34,9 +34,12 @@ def aiflow_kit_root() -> Path:
 
     current = Path(__file__).resolve()
     for parent in current.parents:
-        if (parent / "scripts" / "aiflow-dev.bat").exists() and (parent / "src" / "aiflow").exists():
+        if (parent / "scripts" / "aiflow-dev.bat").exists() and (
+            (parent / "src" / "aiflow").exists()
+            or (parent / "packages" / "aiflow-cli" / "src" / "aiflow").exists()
+        ):
             return parent
-    return current.parents[3]
+    return current.parents[5]
 
 
 def detect_environment(project_root: Path) -> dict[str, Any]:

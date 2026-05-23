@@ -5,6 +5,7 @@ import os
 import subprocess
 from argparse import Namespace
 from pathlib import Path
+from typing import Any
 
 from ..core.config import load_config
 from ..core.files import write_text_safely
@@ -18,42 +19,85 @@ ORDER = ["lint", "typecheck", "test", "build"]
 def run_verify(args: Namespace) -> int:
     root = project_root()
     ensure_aiflow_dir(root)
+    result = run_verification(
+        root,
+        root / ".aiflow",
+        dry_run=args.dry_run,
+        continue_on_error=args.continue_on_error,
+        auto=getattr(args, "auto", False),
+    )
+    if not result["commands"]:
+        print("No verification commands configured.")
+    else:
+        print("written: .aiflow/verify.md")
+    return int(result["exit_code"])
+
+
+def run_verification(
+    root: Path,
+    output_dir: Path,
+    *,
+    dry_run: bool = False,
+    continue_on_error: bool = False,
+    auto: bool = False,
+) -> dict[str, Any]:
     config = load_config(root)
     commands = [(name, config.get("commands", {}).get(name, "")) for name in ORDER]
-    if getattr(args, "auto", False):
+    if auto:
         commands = merge_auto_commands(root, commands)
     commands = [(name, command) for name, command in commands if command]
 
-    lines = ["# Verification", "", f"Generated at: {now_stamp()}", "", "## Commands", ""]
+    generated_at = now_stamp()
+    lines = ["# Verification", "", f"Generated at: {generated_at}", "", "## Commands", ""]
+    payload: dict[str, Any] = {"ok": True, "generated_at": generated_at, "commands": [], "exit_code": 0}
     if not commands:
         lines.append("- No commands configured in `.aiflow/config.toml`.")
-        write_text_safely(root / ".aiflow" / "verify.md", "\n".join(lines) + "\n", force=True)
-        print("No verification commands configured.")
-        return 0
+        write_text_safely(output_dir / "verify.md", "\n".join(lines) + "\n", force=True)
+        write_json(output_dir / "verify.json", payload)
+        return payload
 
     exit_code = 0
     results: list[str] = []
     for name, command in commands:
         lines.append(f"- {name}: `{command}`")
-        if args.dry_run:
+        command_result: dict[str, Any] = {
+            "name": name,
+            "command": command,
+            "exit_code": 0,
+            "required": True,
+            "dry_run": dry_run,
+        }
+        if dry_run:
             results.append(f"- {name}: dry-run")
+            payload["commands"].append(command_result)
             continue
         print(f"Running {name}: {command}")
         result = subprocess.run(command, cwd=root, shell=True, text=True, capture_output=True)
+        command_result["exit_code"] = result.returncode
         results.append(f"- {name}: exit {result.returncode}")
         if result.stdout:
+            command_result["stdout"] = result.stdout
             results.append(f"\n```text\n{result.stdout.strip()}\n```")
         if result.stderr:
+            command_result["stderr"] = result.stderr
             results.append(f"\n```text\n{result.stderr.strip()}\n```")
+        payload["commands"].append(command_result)
         if result.returncode != 0:
             exit_code = result.returncode
-            if not args.continue_on_error:
+            payload["ok"] = False
+            if not continue_on_error:
                 break
 
+    payload["exit_code"] = exit_code
     lines.extend(["", "## Results", "", *results])
-    write_text_safely(root / ".aiflow" / "verify.md", "\n".join(lines) + "\n", force=True)
-    print("written: .aiflow/verify.md")
-    return exit_code
+    write_text_safely(output_dir / "verify.md", "\n".join(lines) + "\n", force=True)
+    write_json(output_dir / "verify.json", payload)
+    return payload
+
+
+def write_json(path: Path, payload: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8", newline="\n")
 
 
 def merge_auto_commands(root: Path, commands: list[tuple[str, str]]) -> list[tuple[str, str]]:
@@ -66,10 +110,11 @@ def merge_auto_commands(root: Path, commands: list[tuple[str, str]]) -> list[tup
 
 def detect_verify_commands(root: Path) -> list[tuple[str, str]]:
     detected: dict[str, list[str]] = {name: [] for name in ORDER}
-    if (root / "pyproject.toml").exists() or (root / "tests").exists():
-        detected["test"].append(detect_python_test_command(root))
-    if (root / "src").exists():
-        detected["build"].append("python -m compileall src")
+    for python_root in python_project_roots(root):
+        if (python_root / "pyproject.toml").exists() or (python_root / "tests").exists():
+            detected["test"].append(detect_python_test_command(root, python_root))
+        if (python_root / "src").exists():
+            detected["build"].append(f"python -m compileall {relative_command_path(root, python_root / 'src')}")
     detect_node_commands(root, detected)
     if (root / "go.mod").exists():
         detected["test"].append("go test ./...")
@@ -80,10 +125,32 @@ def detect_verify_commands(root: Path) -> list[tuple[str, str]]:
     return [(name, " && ".join(commands)) for name, commands in detected.items() if commands]
 
 
-def detect_python_test_command(root: Path) -> str:
-    if has_pytest_config(root):
-        return "python -m pytest"
-    return "python -m unittest discover -s tests"
+def python_project_roots(root: Path) -> list[Path]:
+    roots: list[Path] = []
+    if (root / "pyproject.toml").exists() or (root / "tests").exists() or (root / "src").exists():
+        roots.append(root)
+    packages_root = root / "packages"
+    if packages_root.exists():
+        for child in sorted(packages_root.iterdir(), key=lambda p: p.name.lower()):
+            if child.is_dir() and ((child / "pyproject.toml").exists() or (child / "tests").exists() or (child / "src").exists()):
+                roots.append(child)
+    return roots
+
+
+def detect_python_test_command(root: Path, python_root: Path) -> str:
+    if has_pytest_config(python_root):
+        path = relative_command_path(root, python_root)
+        return "python -m pytest" if path == "." else f"python -m pytest {path}"
+    return f"python -m unittest discover -s {relative_command_path(root, python_root / 'tests')}"
+
+
+def relative_command_path(root: Path, path: Path) -> str:
+    try:
+        relative = path.relative_to(root)
+    except ValueError:
+        return str(path)
+    text = relative.as_posix()
+    return text or "."
 
 
 def has_pytest_config(root: Path) -> bool:

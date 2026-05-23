@@ -7,6 +7,7 @@ from . import __version__
 from .commands.agents import configure_agents_parser
 from .commands.browser import configure_browser_parser
 from .commands.claude_agent import configure_claude_agent_parser
+from .commands.codegraph import configure_codegraph_parser
 from .commands.config import configure_config_parser
 from .commands.context import run_context
 from .commands.db import configure_db_parser
@@ -14,6 +15,7 @@ from .commands.doctor import run_doctor
 from .commands.env import configure_env_parser
 from .commands.forge import configure_forge_parser
 from .commands.frontend import configure_frontend_parser
+from .commands.graphify import configure_graphify_parser
 from .commands.init import run_init
 from .commands.install_skills import run_install_skills
 from .commands.memory import configure_memory_parser
@@ -22,6 +24,7 @@ from .commands.plan import run_plan
 from .commands.review import run_review
 from .commands.ssh import configure_ssh_parser
 from .commands.verify import run_verify
+from .commands.workflow import run_workflow
 from .commands.wsl import configure_wsl_parser
 
 
@@ -64,6 +67,19 @@ def build_parser() -> argparse.ArgumentParser:
     p_verify.add_argument("--auto", action="store_true", help="Infer missing verification commands from project files")
     p_verify.set_defaults(func=run_verify)
 
+    p_workflow = sub.add_parser("workflow", help="Run the standard aiflow context, plan, verify, and review workflow")
+    p_workflow.add_argument("goal", nargs="*", help="Optional goal text for .aiflow/plan.md")
+    p_workflow.add_argument("--no-compact", action="store_true", help="Only refresh .aiflow/context.md")
+    p_workflow.add_argument("--skip-plan", action="store_true", help="Do not generate .aiflow/plan.md")
+    p_workflow.add_argument("--force-plan", action="store_true", help="Overwrite existing .aiflow/plan.md")
+    p_workflow.add_argument("--verify", action="store_true", help="Run aiflow verify --auto")
+    p_workflow.add_argument("--review", action="store_true", help="Run aiflow review")
+    p_workflow.add_argument("--check", action="store_true", help="Run verify --auto --continue-on-error, then review")
+    p_workflow.add_argument("--no-auto-verify", action="store_true", help="Use only configured verification commands")
+    p_workflow.add_argument("--continue-on-error", action="store_true", help="Continue verification after failures")
+    p_workflow.add_argument("--dry-run", action="store_true", help="Print workflow steps without writing files")
+    p_workflow.set_defaults(func=run_workflow)
+
     p_install = sub.add_parser("install-skills", help="Install bundled skills")
     p_install.add_argument(
         "--target",
@@ -80,11 +96,13 @@ def build_parser() -> argparse.ArgumentParser:
     configure_agents_parser(sub)
     configure_browser_parser(sub)
     configure_claude_agent_parser(sub)
+    configure_codegraph_parser(sub)
     configure_config_parser(sub)
     configure_db_parser(sub)
     configure_env_parser(sub)
     configure_forge_parser(sub)
     configure_frontend_parser(sub)
+    configure_graphify_parser(sub)
     configure_memory_parser(sub)
     configure_nacos_parser(sub)
     configure_ssh_parser(sub)

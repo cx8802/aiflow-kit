@@ -398,7 +398,7 @@ pipx install aiflow-kit
 ```bat
 git clone <repo>
 cd aiflow-kit
-pip install -e .
+.venv\Scripts\python.exe -m pip install -e packages\aiflow-cli
 ```
 
 ### 8.2 初始化项目

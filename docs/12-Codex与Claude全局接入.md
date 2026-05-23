@@ -133,7 +133,7 @@ aiflow --help
 ```bat
 cd /d <aiflow-kit目录>
 scripts\use-project-env.bat
-python -m pip install -e .
+.venv\Scripts\python.exe -m pip install -e packages\aiflow-cli
 aiflow --help
 ```
 
