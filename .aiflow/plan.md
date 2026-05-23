@@ -1,5 +1,46 @@
 # Plan
 
+## Forge Access Token Configuration Plan
+
+### Goal
+
+- Let `aiflow forge` use configured Gitee and GitHub access tokens without requiring every release command to set environment variables.
+- Store token values only in ignored project-local files.
+- Keep release dry-run and status output redacted.
+
+### Non-goals
+
+- Do not write tokens to tracked config, docs, memory, or command output.
+- Do not add OS credential-manager integration in this pass.
+- Do not bypass GitHub/Gitee permission errors from insufficient token scopes.
+
+### Impact Scope
+
+- `packages/aiflow-cli/src/aiflow/core/forge.py`
+- `packages/aiflow-cli/src/aiflow/commands/forge.py`
+- `packages/aiflow-cli/tests/test_cli_smoke.py`
+- `README.md`
+- `.aiflow/plan.md`
+
+### Steps
+
+1. Done: Add failing tests for project-local forge token configuration.
+2. Done: Implement `.aiflow/forge.local.toml` token loading and `forge auth` commands.
+3. Done: Update README usage for Gitee/GitHub access token setup.
+4. Done: Run focused tests, full smoke tests, configured verification, and diff checks.
+
+### Verification
+
+- Failed as expected: `python -m unittest packages.aiflow-cli.tests.test_cli_smoke.CliSmokeTests.test_forge_auth_set_stores_project_local_token_and_status_redacts packages.aiflow-cli.tests.test_cli_smoke.CliSmokeTests.test_forge_release_create_uses_project_local_token`
+- Passed: `python -m unittest packages.aiflow-cli.tests.test_cli_smoke.CliSmokeTests.test_forge_auth_set_stores_project_local_token_and_status_redacts packages.aiflow-cli.tests.test_cli_smoke.CliSmokeTests.test_forge_release_create_uses_project_local_token packages.aiflow-cli.tests.test_cli_smoke.CliSmokeTests.test_forge_release_create_requires_token_without_dry_run`
+- Passed: `python -m unittest discover -s packages\aiflow-cli\tests -p test_cli_smoke.py` (73 tests, 1 skipped because `sh` is unavailable on this Windows host)
+- Passed: `cmd /c scripts\win\aiflow-dev.bat verify --auto --continue-on-error`
+- Passed: `git diff --check`
+- Passed: real token scan outside ignored `.aiflow/forge.local.toml` found no matches.
+- Passed: `cmd /c scripts\win\aiflow-dev.bat forge auth status` shows Gitee and GitHub configured from local ignored config.
+- Passed: `cmd /c scripts\win\aiflow-dev.bat forge release get --provider gitee --repo aoxianglantian/aiflow-kit --tag v0.1.2` using local auth config.
+- GitHub release creation still returns HTTP 403 because the configured GitHub token lacks release creation access to `cx8802/aiflow-kit`.
+
 ## Non-Commercial v0.1.2 Release Plan
 
 ### Goal

@@ -178,14 +178,28 @@ GitHub 示例：
 aiflow forge release create --provider github --repo owner/repo --tag v1.0.0 --name v1.0.0 --notes "Release notes"
 ```
 
-Token 只从环境变量读取：
+Token 可以先从环境变量读取：
 
 ```powershell
 $env:GITEE_ACCESS_TOKEN="..."
 $env:GITHUB_TOKEN="..."
 ```
 
-不要把 token 写进仓库、README、`.aiflow/memory.md` 或聊天记录。
+也可以写入项目级本地配置，后续 `aiflow forge release ...` 会自动读取：
+
+```bat
+aiflow forge auth set --provider gitee --from-env GITEE_ACCESS_TOKEN
+aiflow forge auth set --provider github --from-env GITHUB_TOKEN
+aiflow forge auth status
+```
+
+如果不想把 token 放进命令行参数，可以从标准输入读取：
+
+```bat
+type token.txt | aiflow forge auth set --provider github --token-stdin
+```
+
+Token 会保存到 `.aiflow/forge.local.toml`，该文件已被 `.gitignore` 忽略。不要把 token 写进仓库、README、`.aiflow/memory.md` 或聊天记录。
 
 ## 目录结构
 

@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import json
 import re
+import tomllib
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 
@@ -48,6 +50,64 @@ class ForgeError(RuntimeError):
         super().__init__(message)
         self.status = status
         self.body = body
+
+
+def forge_local_path(root: Path) -> Path:
+    return root / ".aiflow" / "forge.local.toml"
+
+
+def load_forge_auth(root: Path) -> dict[str, dict[str, str]]:
+    path = forge_local_path(root)
+    if not path.exists():
+        return {}
+    with path.open("rb") as f:
+        data = tomllib.load(f)
+    auth: dict[str, dict[str, str]] = {}
+    for provider in PROVIDERS:
+        section = data.get(provider, {})
+        if isinstance(section, dict):
+            token = section.get("token", "")
+            if isinstance(token, str) and token:
+                auth[provider] = {"token": token}
+    return auth
+
+
+def save_forge_token(root: Path, provider: str, token: str) -> Path:
+    if provider not in PROVIDERS:
+        raise ValueError(f"Unsupported forge provider: {provider}")
+    if not token:
+        raise ValueError("Token must not be empty")
+    auth = load_forge_auth(root)
+    auth[provider] = {"token": token}
+    return save_forge_auth(root, auth)
+
+
+def remove_forge_token(root: Path, provider: str) -> Path:
+    if provider not in PROVIDERS:
+        raise ValueError(f"Unsupported forge provider: {provider}")
+    auth = load_forge_auth(root)
+    auth.pop(provider, None)
+    return save_forge_auth(root, auth)
+
+
+def save_forge_auth(root: Path, auth: dict[str, dict[str, str]]) -> Path:
+    path = forge_local_path(root)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    lines: list[str] = []
+    for provider in sorted(PROVIDERS):
+        token = auth.get(provider, {}).get("token", "")
+        if not token:
+            continue
+        if lines:
+            lines.append("")
+        lines.append(f"[{provider}]")
+        lines.append(f'token = "{escape_toml_string(token)}"')
+    path.write_text("\n".join(lines).rstrip() + ("\n" if lines else ""), encoding="utf-8", newline="\n")
+    return path
+
+
+def escape_toml_string(value: str) -> str:
+    return value.replace("\\", "\\\\").replace('"', '\\"')
 
 
 def parse_remote_url(url: str) -> ForgeRepo | None:

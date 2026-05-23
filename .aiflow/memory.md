@@ -8,3 +8,4 @@
 - 2026-05-24T00:52:55+08:00 Platform script implementations live under scripts/win for Windows CMD and scripts/mac for macOS/Linux shell; scripts root does not keep command wrappers.
 - 2026-05-24T01:08:40+08:00 Root scripts directory no longer keeps command wrappers; use scripts/win on Windows and scripts/mac on macOS/Linux.
 - 2026-05-24T01:15:12+08:00 Release v0.1.2 changes aiflow-kit to the AIFLOW-KIT Non-Commercial Source License; commercial use is prohibited and package metadata uses LicenseRef-AIFLOW-KIT-NC-1.0.
+- 2026-05-24T01:25:39+08:00 Forge API auth setup uses ignored project-local .aiflow/forge.local.toml via aiflow forge auth set; release commands fall back to that local auth config when environment variables are absent. This note contains no credential values.

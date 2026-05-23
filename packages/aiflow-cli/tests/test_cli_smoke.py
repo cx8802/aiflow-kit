@@ -1356,6 +1356,102 @@ test = "python --version"
             self.assertIn("Missing token environment variable", result.stdout)
             self.assertIn("GITHUB_TOKEN", result.stdout)
 
+    def test_forge_auth_set_stores_project_local_token_and_status_redacts(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            cwd = Path(tmp)
+            result = run_aiflow(
+                cwd,
+                "forge",
+                "auth",
+                "set",
+                "--provider",
+                "gitee",
+                "--from-env",
+                "GITEE_ACCESS_TOKEN",
+                env={"GITEE_ACCESS_TOKEN": "secret-token"},
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn(".aiflow", result.stdout)
+            self.assertNotIn("secret-token", result.stdout)
+
+            local_config = cwd / ".aiflow" / "forge.local.toml"
+            self.assertTrue(local_config.exists())
+            self.assertIn('token = "secret-token"', local_config.read_text(encoding="utf-8"))
+
+            status = run_aiflow(
+                cwd,
+                "forge",
+                "auth",
+                "status",
+                env={"GITEE_ACCESS_TOKEN": "", "GITHUB_TOKEN": "", "GH_TOKEN": ""},
+            )
+            self.assertEqual(status.returncode, 0, status.stderr)
+            self.assertIn("gitee: configured", status.stdout)
+            self.assertIn("github: missing", status.stdout)
+            self.assertNotIn("secret-token", status.stdout)
+
+    def test_forge_release_create_uses_project_local_token(self) -> None:
+        requests: list[dict[str, object]] = []
+
+        class ForgeHandler(BaseHTTPRequestHandler):
+            def do_POST(self) -> None:
+                length = int(self.headers.get("Content-Length", "0"))
+                body = json.loads(self.rfile.read(length).decode("utf-8"))
+                requests.append({"path": self.path, "auth": self.headers.get("Authorization"), "body": body})
+                self.send_response(201)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"id": 43, "tag_name": body["tag_name"], "name": body["name"]}).encode("utf-8"))
+
+            def log_message(self, format: str, *args: object) -> None:
+                return
+
+        server = HTTPServer(("127.0.0.1", 0), ForgeHandler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            with tempfile.TemporaryDirectory() as tmp:
+                cwd = Path(tmp)
+                set_token = run_aiflow(
+                    cwd,
+                    "forge",
+                    "auth",
+                    "set",
+                    "--provider",
+                    "gitee",
+                    "--from-env",
+                    "GITEE_ACCESS_TOKEN",
+                    env={"GITEE_ACCESS_TOKEN": "local-secret"},
+                )
+                self.assertEqual(set_token.returncode, 0, set_token.stderr)
+
+                result = run_aiflow(
+                    cwd,
+                    "forge",
+                    "release",
+                    "create",
+                    "--provider",
+                    "gitee",
+                    "--repo",
+                    "acme/demo",
+                    "--tag",
+                    "v1.2.3",
+                    "--name",
+                    "v1.2.3",
+                    "--notes",
+                    "Release notes",
+                    "--api-base-url",
+                    f"http://127.0.0.1:{server.server_port}",
+                    env={"GITEE_ACCESS_TOKEN": ""},
+                )
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(requests[0]["auth"], "Bearer local-secret")
+                self.assertNotIn("local-secret", result.stdout)
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=5)
+
     def test_forge_release_create_posts_to_mocked_gitee_api(self) -> None:
         requests: list[dict[str, object]] = []
 
