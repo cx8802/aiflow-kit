@@ -212,7 +212,9 @@ def node_script_command(runner: str, script_name: str) -> str:
 
 def maven_test_command(root: Path) -> str:
     wrapper = root / ("mvnw.cmd" if os.name == "nt" else "mvnw")
-    return str(wrapper) + " test" if wrapper.exists() else "mvn test"
+    # Verification runs with cwd=root; keep spaces in the project path out of the shell command.
+    command = r".\mvnw.cmd test" if os.name == "nt" else "./mvnw test"
+    return command if wrapper.exists() else "mvn test"
 
 
 def has_gradle_project(root: Path) -> bool:
@@ -221,4 +223,6 @@ def has_gradle_project(root: Path) -> bool:
 
 def gradle_test_command(root: Path) -> str:
     wrapper = root / ("gradlew.bat" if os.name == "nt" else "gradlew")
-    return str(wrapper) + " test" if wrapper.exists() else "gradle test"
+    # Use an explicit local path so the wrapper is preferred over PATH tools.
+    command = r".\gradlew.bat test" if os.name == "nt" else "./gradlew test"
+    return command if wrapper.exists() else "gradle test"
